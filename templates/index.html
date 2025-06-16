@@ -237,16 +237,16 @@
                     <label for="dateInput" class="form-label">Jump to Date</label>
                     <input type="date" id="dateInput" class="form-control mb-2" max="{{ max_date }}">
                     <div class="d-flex gap-2 mb-2">
-                        <button class="btn btn-outline-secondary flex-fill" type="button" onclick="changeDay(-1)">&lt; Day</button>
-                        <button class="btn btn-outline-secondary flex-fill" type="button" onclick="changeDay(1)">Day &gt;</button>
+                        <button class="btn btn-outline-secondary flex-fill w-50" type="button" onclick="changeDay(-1)">&lt; Day</button>
+                        <button class="btn btn-outline-secondary flex-fill w-50" type="button" onclick="changeDay(1)">Day &gt;</button>
                     </div>
                     <div class="d-flex gap-2 mb-2">
-                        <button class="btn btn-outline-secondary flex-fill" type="button" onclick="changeMonth(-1)">&lt; Month</button>
-                        <button class="btn btn-outline-secondary flex-fill" type="button" onclick="changeMonth(1)">Month &gt;</button>
+                        <button class="btn btn-outline-secondary flex-fill w-50" type="button" onclick="changeMonth(-1)">&lt; Month</button>
+                        <button class="btn btn-outline-secondary flex-fill w-50" type="button" onclick="changeMonth(1)">Month &gt;</button>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-primary flex-fill" onclick="goToDate()">Go</button>
-                        <button class="btn btn-outline-secondary flex-fill" type="button" onclick="pickToday()">Now</button>
+                        <button class="btn btn-primary flex-fill w-50" onclick="goToDate()">Go</button>
+                        <button class="btn btn-outline-secondary flex-fill w-50" type="button" onclick="pickToday()">Today</button>
                     </div>
                 </div>
             </div>

@@ -24,7 +24,7 @@ import re
 import urllib.request
 import zipfile
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
