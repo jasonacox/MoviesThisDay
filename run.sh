@@ -19,6 +19,8 @@ docker run -d \
   --health-timeout=10s \
   --health-retries=3 \
   -e TZ=America/Los_Angeles \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
   jasonacox/moviesthisday:latest
 
 # Check if the container is running
