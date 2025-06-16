@@ -1,0 +1,7 @@
+# Requirements for MoviesToday FastAPI web service and UI
+fastapi
+uvicorn
+jinja2
+requests
+python-dotenv
+pytest

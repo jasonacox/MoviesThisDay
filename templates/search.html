@@ -1,0 +1,262 @@
+<!-- search.html: Modern search page for MoviesToday -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search | MoviesToday</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f3f6fa; }
+    .header-bar {
+      font-size: 1.15rem;
+      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+      color: #fff;
+      padding: 14px 0 12px 0;
+      margin-bottom: 0;
+      z-index: 1100;
+      box-shadow: 0 2px 8px rgba(30,41,59,0.07);
+    }
+    .header-bar span { font-weight: 600; letter-spacing: 0.5px; }
+    .header-bar .tagline { font-size: 0.97rem; color: #e0e7ef; }
+    .nav-link.active { font-weight: bold; color: #fff !important; text-decoration: underline; }
+    .footer {
+      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+      color: #fff;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      box-shadow: 0 -2px 8px rgba(30,41,59,0.07);
+      border-bottom: none;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+    }
+    .footer a { color: #e0e7ef; text-decoration: underline; }
+    .search-sidebar {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(30,41,59,0.08);
+      padding: 24px 18px;
+      margin-bottom: 24px;
+    }
+    .results-table {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 16px rgba(30,41,59,0.07);
+    }
+    .form-control {
+      background: #f8fafc;
+      border: 1.5px solid #b6c6e3;
+      border-radius: 7px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px #60a5fa33;
+      background: #f0f6ff;
+    }
+    @media (max-width: 991px) {
+      .row.flex-lg-nowrap { flex-wrap: wrap !important; }
+      .search-sidebar { margin-bottom: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header-bar fixed-top d-flex align-items-center justify-content-between px-3">
+    <div class="d-flex align-items-center">
+      <span style="font-size:1.25rem; font-weight:700; letter-spacing:0.5px;">MoviesToday</span>
+      <span class="ms-2 tagline d-none d-md-inline">Discover movies released on this day in history</span>
+    </div>
+    <nav class="d-flex align-items-center ms-auto">
+      <a class="nav-link d-inline px-2 {% if request.url.path == '/' %}active{% endif %}" href="/">Home</a>
+      <a class="nav-link d-inline px-2 {% if request.url.path == '/about' %}active{% endif %}" href="/about">About</a>
+      <a class="nav-link d-inline px-2 {% if request.url.path == '/movies/search' %}active{% endif %}" href="/movies/search">Search</a>
+    </nav>
+  </div>
+  <div class="container" style="padding-top:80px;">
+    <div class="row flex-lg-nowrap">
+      <div class="col-lg-3 mb-4 search-sidebar d-flex flex-column align-items-center justify-content-start sticky-lg-top" style="top:80px; margin-top:32px; max-height:calc(100vh - 220px); overflow:auto;">
+        <h4 class="mb-3">Search Movies</h4>
+        <form id="searchForm" onsubmit="searchMovies(); return false;" style="width:100%; max-width:340px;">
+          <div class="mb-2">
+            <label class="form-label">Title (regex)</label>
+            <input type="text" class="form-control" name="title" placeholder="e.g. matrix">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">IMDb ID</label>
+            <input type="text" class="form-control" name="imdb_id" placeholder="e.g. tt0133093">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Release Date</label>
+            <input type="date" class="form-control" name="release_date">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Release Year</label>
+            <input type="number" class="form-control" name="release_year" min="1900" max="2100" placeholder="e.g. 1999">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Runtime (e.g. &gt;120, 90-120)</label>
+            <input type="text" class="form-control" name="runtime" placeholder=">120 or 90-120">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Genre (regex)</label>
+            <input type="text" class="form-control" name="genre" placeholder="e.g. Action">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Studio (regex)</label>
+            <input type="text" class="form-control" name="studio" placeholder="e.g. Warner">
+          </div>
+          <button type="submit" class="btn btn-primary w-100 mt-2">Search</button>
+          <button type="button" class="btn btn-outline-secondary w-100 mt-2" onclick="clearSearchForm()">Clear</button>
+        </form>
+      </div>
+      <div class="col-lg-9 d-flex flex-column" style="margin-top:0px; height: 90vh; padding-bottom:70px;">
+        <div class="flex-grow-1 overflow-auto" style="min-height:0;">
+          <div id="loadingSpinner" style="display:none; text-align:center; padding:40px 0;">
+            <div class="spinner-border text-primary" role="status" style="width:3rem; height:3rem;">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-2" style="color:#2563eb; font-weight:500;">Loading...</div>
+          </div>
+          <div id="paginationControls" class="d-flex justify-content-between align-items-center mb-2" style="display:none;">
+            <button id="prevPage" class="btn btn-outline-secondary btn-sm">&laquo; Prev</button>
+            <span id="pageInfo" style="font-weight:500;"></span>
+            <button id="nextPage" class="btn btn-outline-secondary btn-sm">Next &raquo;</button>
+          </div>
+          <table class="table table-striped table-hover shadow mb-0 results-table" id="resultsTable" style="table-layout:fixed; display:none;">
+            <thead>
+              <tr>
+                <th style="width:auto; min-width:120px;">Title</th>
+                <th style="width:120px;">Release</th>
+                <th style="width:80px;">Runtime</th>
+                <th style="width:120px;">Popularity</th>
+                <th style="width:70px;">IMDB</th>
+                <th style="width:120px;">Studio</th>
+                <th style="width:120px;">Genre</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+          <div id="noResults" class="alert alert-warning mt-3" style="display:none;">No results found.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer text-center" style="font-size:0.95rem;">
+    Powered by <a href="https://github.com/jasonacox/MoviesToday" target="_blank">MoviesToday</a> &mdash; &copy; <span id="footerYear"></span> Jason A. Cox
+  </div>
+  <script>
+    document.getElementById('footerYear').textContent = new Date().getFullYear();
+    let currentPage = 1;
+    const pageSize = 25;
+    let lastResults = [];
+
+    function renderTablePage(page) {
+      const table = document.getElementById('resultsTable');
+      const body = document.getElementById('resultsBody');
+      const pageInfo = document.getElementById('pageInfo');
+      const pagination = document.getElementById('paginationControls');
+      const total = lastResults.length;
+      const totalPages = Math.ceil(total / pageSize);
+      if (total === 0) {
+        table.style.display = 'none';
+        pagination.style.display = 'none';
+        return;
+      }
+      table.style.display = '';
+      pagination.style.display = totalPages > 1 ? '' : 'none';
+      pageInfo.textContent = `Page ${page} of ${totalPages}`;
+      body.innerHTML = '';
+      const start = (page - 1) * pageSize;
+      const end = Math.min(start + pageSize, total);
+      for (let i = start; i < end; i++) {
+        const movie = lastResults[i];
+        body.innerHTML += `<tr>
+          <td style="word-break:break-word; white-space:normal;">${movie.title || ''}</td>
+          <td>${movie.release_date || ''}</td>
+          <td>${movie.runtime ? movie.runtime + ' min' : '-'}</td>
+          <td>${movie.popularity ? Math.round(movie.popularity) : '-'}</td>
+          <td>${movie.imdb_id ? `<a href='https://www.imdb.com/title/${movie.imdb_id}' target='_blank'>IMDB</a>` : '-'}</td>
+          <td>${movie.production_companies || '-'}</td>
+          <td>${movie.omdb_genre || '-'}</td>
+        </tr>`;
+      }
+      document.getElementById('prevPage').disabled = page <= 1;
+      document.getElementById('nextPage').disabled = page >= totalPages;
+    }
+
+    document.getElementById('prevPage').onclick = function() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTablePage(currentPage);
+      }
+    };
+    document.getElementById('nextPage').onclick = function() {
+      const totalPages = Math.ceil(lastResults.length / pageSize);
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTablePage(currentPage);
+      }
+    };
+
+    function searchMovies() {
+      const form = document.getElementById('searchForm');
+      const params = new URLSearchParams();
+      for (const el of form.elements) {
+        if (el.name && el.value) params.append(el.name, el.value);
+      }
+      let url = '/movies/lookup?' + params.toString();
+      const table = document.getElementById('resultsTable');
+      const body = document.getElementById('resultsBody');
+      const noResults = document.getElementById('noResults');
+      const spinner = document.getElementById('loadingSpinner');
+      const pagination = document.getElementById('paginationControls');
+      table.style.display = 'none';
+      noResults.style.display = 'none';
+      pagination.style.display = 'none';
+      body.innerHTML = '';
+      spinner.style.display = '';
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          spinner.style.display = 'none';
+          if (data.results && data.results.length > 0) {
+            lastResults = data.results;
+            currentPage = 1;
+            renderTablePage(currentPage);
+            noResults.style.display = 'none';
+          } else {
+            table.style.display = 'none';
+            pagination.style.display = 'none';
+            noResults.style.display = '';
+          }
+        })
+        .catch(() => {
+          spinner.style.display = 'none';
+          table.style.display = 'none';
+          pagination.style.display = 'none';
+          noResults.style.display = '';
+        });
+    }
+
+    function clearSearchForm() {
+      const form = document.getElementById('searchForm');
+      for (const el of form.elements) {
+        if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+          if (el.type === 'checkbox' || el.type === 'radio') {
+            el.checked = false;
+          } else {
+            el.value = '';
+          }
+        }
+      }
+    }
+  </script>
+</body>
+</html>

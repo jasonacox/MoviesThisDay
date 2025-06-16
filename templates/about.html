@@ -1,0 +1,100 @@
+<!-- about.html: Standalone About page for MoviesToday -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About | MoviesToday</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f3f6fa; }
+    .container { margin-top: 40px; }
+    h1 { font-weight: 700; margin-bottom: 30px; }
+    .card { max-width: 700px; margin: 2rem auto; }
+    .footer {
+      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+      color: #fff;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      box-shadow: 0 -2px 8px rgba(30,41,59,0.07);
+      border-bottom: none;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+    }
+    .footer a {
+      color: #e0e7ef;
+      text-decoration: underline;
+    }
+    .header-bar {
+      font-size: 1.15rem;
+      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+      color: #fff;
+      padding: 14px 0 12px 0;
+      margin-bottom: 0;
+      z-index: 1100;
+      box-shadow: 0 2px 8px rgba(30,41,59,0.07);
+    }
+    .header-bar span {
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .header-bar .tagline {
+      font-size: 0.97rem;
+      color: #e0e7ef;
+    }
+    .nav-link.active {
+      font-weight: bold;
+      color: #fff !important;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-bar fixed-top d-flex align-items-center justify-content-between px-3">
+    <div class="d-flex align-items-center">
+      <span style="font-size:1.25rem; font-weight:700; letter-spacing:0.5px;">MoviesToday</span>
+      <span class="ms-2 tagline d-none d-md-inline">Discover movies released on this day in history</span>
+    </div>
+    <nav class="d-flex align-items-center ms-auto">
+      <a class="nav-link d-inline px-2 {% if request.url.path == '/' %}active{% endif %}" href="/">Home</a>
+      <a class="nav-link d-inline px-2 {% if request.url.path == '/about' %}active{% endif %}" href="/about">About</a>
+      <a class="nav-link d-inline px-2 {% if request.url.path == '/movies/search' %}active{% endif %}" href="/movies/search">Search</a>
+    </nav>
+  </div>
+  <div class="container mt-5 pt-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title mb-3">About MoviesToday</h2>
+        <h5>What is this tool?</h5>
+        <p>{{ about_info.what }}</p>
+        <h5>How to use this tool?</h5>
+        <ul>
+          {% for how in about_info.how %}
+          <li>{{ how }}</li>
+          {% endfor %}
+        </ul>
+        <h6>API Examples:</h6>
+        <ul class="mb-3">
+          {% for api in about_info.api_examples %}
+          <li><b>{{ api.desc }}:</b> <br><code>{{ api.cmd }}</code></li>
+          {% endfor %}
+        </ul>
+        <h5>About the Author & Project</h5>
+        <p><b>Author:</b> {{ about_info.author }}<br>
+        <b>Project:</b> {{ about_info.project }}<br>
+        <br>
+        <a href="https://github.com/jasonacox/MoviesToday" target="_blank">See the MoviesToday GitHub for more API details and documentation.</a></p>
+      </div>
+    </div>
+  </div>
+  <div class="footer text-center" style="font-size:0.95rem;">
+    Powered by <a href="https://github.com/jasonacox/MoviesToday" target="_blank">MoviesToday</a> &mdash; &copy; {{ current_year }} Jason A. Cox
+  </div>
+</body>
+</html>

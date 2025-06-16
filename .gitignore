@@ -192,3 +192,10 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+movie_db/backup
+
+movie_db/TMDB_movie_dataset_v11.csv
+movie_db/movies_by_day.json
+
+movie_db/movies_by_day.pkl
+movie_db/omdb_raw.jsonl
