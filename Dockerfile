@@ -1,5 +1,5 @@
 # Dockerfile for MoviesThisDay
-FROM python:3.10-slim
+FROM python:3.10-alpine
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -8,17 +8,14 @@ ENV PYTHONUNBUFFERED=1
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
-#RUN apt-get update && apt-get install -y \
-#    unzip \
-#    && rm -rf /var/lib/apt/lists/*
-
 # Copy requirements and install
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY app.py ./
+COPY templates/ ./templates/
+COPY movie_db/movies_by_day.pkl ./movie_db/movies_by_day.pkl
 
 # Expose port
 EXPOSE 8000

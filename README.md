@@ -2,6 +2,8 @@
 
 A modern FastAPI web application and API for exploring movies released on this day in history.
 
+Website: [moviesthisday.com](https://moviesthisday.com)
+
 ## Features
 - FastAPI backend serving both HTML (Bootstrap-styled) and JSON endpoints
 - Browse movies by date, search by title, IMDb ID, release date, year, genre, studio, and runtime
@@ -61,6 +63,35 @@ On first run, if the required `movie_db/movies_by_day.pkl` data file is missing,
 - `app.py` — Main FastAPI app and all endpoints
 - `templates/` — HTML templates (Bootstrap, modern UI)
 - `movie_db/` — Data and scripts for building the movie index
+
+## Running with Docker
+
+You can run MoviesThisDay using the official Docker container for easy deployment:
+
+```sh
+# Start the container (see run.sh for details)
+./run.sh
+```
+
+This will:
+- Pull and run the latest MoviesThisDay image
+- Expose the app on port 8000 (or your chosen port)
+- Set the timezone via the `TZ` environment variable (default: America/Los_Angeles)
+- Automatically restart the container unless stopped
+- Provide a healthcheck for the container
+
+You can also run the container manually:
+
+```sh
+docker run -d \
+  --name moviesthisday \
+  -p 8000:8000 \
+  --restart unless-stopped \
+  -e TZ=America/Los_Angeles \
+  jasonacox/moviesthisday:latest
+```
+
+See `run.sh` for a robust startup script with healthcheck and log tailing.
 
 ## Author & License
 - Author: Jason A. Cox
