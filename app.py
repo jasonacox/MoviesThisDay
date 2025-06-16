@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 """
-MoviesToday FastAPI Web Service
+MoviesThisDay FastAPI Web Service
 
 A modern web application and API for listing movies released on this day in history.
 
@@ -93,7 +93,7 @@ async def movies_today():
 @app.get("/search", response_class=HTMLResponse)
 async def search_page(request: Request):
     """
-    Render the modern search page for MoviesToday with search fields and results table.
+    Render the modern search page for MoviesThisDay with search fields and results table.
     """
     return templates.TemplateResponse(request, "search.html", {
         "request": request,
@@ -314,9 +314,9 @@ async def about(request: Request):
     from datetime import datetime
     return templates.TemplateResponse(request, "about.html", {
         "request": request,
-        "title": "About | MoviesToday",
+        "title": "About | MoviesThisDay",
         "about_info": {
-            "what": "MoviesToday is a simple tool to provide a list of movies made on this date in history. It uses a local TMDB-derived dataset and offers both a modern web UI and a robust API.",
+            "what": "MoviesThisDay is a simple tool to provide a list of movies made on this date in history. It uses a local TMDB-derived dataset and offers both a modern web UI and a robust API.",
             "how": [
                 "Use the homepage (/) to browse movies released on today's date.",
                 "Use the date picker or navigation to view other days.",

@@ -8,7 +8,7 @@ def test_index():
     resp = client.get("/")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
-    assert "MoviesToday" in resp.text
+    assert "MoviesThisDay" in resp.text
 
 def test_movies_today():
     response = client.get('/movies/today')
@@ -25,7 +25,7 @@ def test_index_html():
     resp = client.get("/")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
-    assert "MoviesToday" in resp.text
+    assert "MoviesThisDay" in resp.text
 
 def test_movies_today():
     resp = client.get("/movies/today")
@@ -35,16 +35,16 @@ def test_movies_today():
     assert "metadata" in data
 
 def test_search_page():
-    resp = client.get("/movies/search")
+    resp = client.get("/search")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
-    assert "Search Movies" in resp.text
+    assert "MoviesThisDay" in resp.text
 
 def test_about_page():
     resp = client.get("/about")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
-    assert "About MoviesToday" in resp.text
+    assert "MoviesThisDay" in resp.text
 
 def test_movies_lookup_title():
     resp = client.get("/movies/lookup", params={"title": "matrix"})

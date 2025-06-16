@@ -1,4 +1,4 @@
-# MoviesToday
+# MoviesThisDay
 
 A modern FastAPI web application and API for exploring movies released on this day in history.
 
@@ -61,5 +61,5 @@ curl -G --data-urlencode 'genre=Action' 'http://localhost:8000/movies/by-genre'
 
 ## Author & License
 - Author: Jason A. Cox
-- Project: [MoviesToday on GitHub](https://github.com/jasonacox/MoviesToday)
+- Project: [MoviesThisDay on GitHub](https://github.com/jasonacox/MoviesThisDay)
 - License: MIT
