@@ -198,7 +198,7 @@
     <div class="header-bar fixed-top d-flex align-items-center justify-content-between px-3">
         <div class="d-flex align-items-center">
             <span style="font-size:1.25rem; font-weight:700; letter-spacing:0.5px;">MoviesThisDay</span>
-            <span class="ms-2 tagline d-none d-md-inline">Discover movies released on this day in history</span>
+            <span class="ms-2 tagline d-none d-md-inline">Discover movies released on this day in history.</span>
         </div>
         <nav class="d-flex align-items-center ms-auto">
             <a class="nav-link d-inline px-2 {% if request.url.path == '/' %}active{% endif %}" href="/">Home</a>
@@ -210,7 +210,7 @@
         <div class="row flex-lg-nowrap">
             <div class="col-lg-3 mb-4 d-flex flex-column align-items-center justify-content-start sticky-lg-top" style="top:80px">
                 <div class="text-center mb-4" style="margin-top:50px;">
-                    <h1 style="font-size:1.5rem; font-weight:700;">Movies Released on This Day in History</h1>
+                    <h1 style="font-size:1.5rem; font-weight:700;">Movies Released on<br>This Day in History</h1>
                     <h5 class="mb-0">
                         {% if today_str == current_date_str %}
                             Today ({{ today_str }})
@@ -285,7 +285,7 @@
         </div>
     </div>
     <div class="footer text-center" style="font-size:0.95rem;">
-        Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a>
+        Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
     </div>
 </body>
 </html>

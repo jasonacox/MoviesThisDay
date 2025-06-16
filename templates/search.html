@@ -139,6 +139,10 @@
             <span id="pageInfo" style="font-weight:500;"></span>
             <button id="nextPage" class="btn btn-outline-secondary btn-sm">Next &raquo;</button>
           </div>
+          <div id="searchPlaceholder" class="alert alert-info mt-3" style="display:block; background-color: #e6fbe6; border-color: #b6e2b6; color: #225522;">
+            Enter search criteria in the form on the left. All fields are filters—add more to narrow down your results!
+          </div>
+          <div id="noResults" class="alert alert-warning mt-3" style="display:none;">No results found.</div>
           <table class="table table-striped table-hover shadow mb-0 results-table" id="resultsTable" style="table-layout:fixed; display:none;">
             <thead>
               <tr>
@@ -153,16 +157,14 @@
             </thead>
             <tbody id="resultsBody"></tbody>
           </table>
-          <div id="noResults" class="alert alert-warning mt-3" style="display:none;">No results found.</div>
         </div>
       </div>
     </div>
   </div>
   <div class="footer text-center" style="font-size:0.95rem;">
-    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> &mdash; &copy; <span id="footerYear"></span> Jason A. Cox
+    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
   </div>
   <script>
-    document.getElementById('footerYear').textContent = new Date().getFullYear();
     let currentPage = 1;
     const pageSize = 25;
     let lastResults = [];
@@ -171,6 +173,7 @@
     // prettier-ignore
     popularity_max = parseFloat("{{ popularity_max|default(100)|float }}");
     function renderTablePage(page) {
+      document.getElementById('searchPlaceholder').style.display = 'none';
       lastResults.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)); // Sort by popularity descending
       const table = document.getElementById('resultsTable');
       const body = document.getElementById('resultsBody');
@@ -269,20 +272,12 @@
           table.style.display = 'none';
           pagination.style.display = 'none';
           noResults.style.display = '';
+          document.getElementById('searchPlaceholder').style.display = 'none';
         });
     }
 
     function clearSearchForm() {
-      const form = document.getElementById('searchForm');
-      for (const el of form.elements) {
-        if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
-          if (el.type === 'checkbox' || el.type === 'radio') {
-            el.checked = false;
-          } else {
-            el.value = '';
-          }
-        }
-      }
+      window.location.reload();
     }
   </script>
 </body>

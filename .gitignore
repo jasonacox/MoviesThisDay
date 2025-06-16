@@ -200,3 +200,6 @@ movie_db/movies_by_day.json
 movie_db/movies_by_day.pkl
 movie_db/omdb_raw.jsonl
 movie_db/backup.sh
+movie_db/movies_by_day.orig.pkl
+upload.sh
+.DS_Store

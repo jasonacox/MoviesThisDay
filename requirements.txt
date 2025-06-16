@@ -2,6 +2,6 @@
 fastapi
 uvicorn
 jinja2
-requests
-python-dotenv
+httpx
 pytest
+requests

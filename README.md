@@ -18,8 +18,7 @@ A modern FastAPI web application and API for exploring movies released on this d
 - `/search` — Advanced search page with sidebar form, paginated results, and modern UI
 - `/about` — About page with project info, usage, API examples, and GitHub link
 
-<img width="1279" alt="image" src="https://github.com/user-attachments/assets/16f3a64a-34f2-4324-b0f1-3dade0838cc2" />
-
+<img width="1199" alt="image" src="https://github.com/user-attachments/assets/5d2a8d0a-95e0-4939-8b3d-c80195dad3a0" />
 
 ## API Endpoints
 - `/movies/today` — Movies released today (JSON)
@@ -53,6 +52,10 @@ curl -G --data-urlencode 'title=star' --data-urlencode 'release_year=1977' 'http
 # Search by genre (regex)
 curl -G --data-urlencode 'genre=Action' 'http://localhost:8000/movies/by-genre'
 ```
+
+## Data File Auto-Download
+
+On first run, if the required `movie_db/movies_by_day.pkl` data file is missing, the app will automatically download and unzip it from a public source. No manual download is required for a fresh install.
 
 ## Project Structure
 - `app.py` — Main FastAPI app and all endpoints

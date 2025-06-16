@@ -21,6 +21,10 @@ import pickle
 from datetime import datetime
 import os
 import re
+import urllib.request
+import zipfile
+
+VERSION = "0.1.0"
 
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
@@ -31,8 +35,26 @@ app = FastAPI()
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
+# Movie database paths
+MOVIE_DB_DIR = os.path.join(os.path.dirname(__file__), 'movie_db')
+PKL_PATH = os.path.join(MOVIE_DB_DIR, 'movies_by_day.pkl')
+PKL_ZIP_URL = 'https://github.com/user-attachments/files/20749297/movies_by_day.pkl.zip'
+PKL_ZIP_PATH = os.path.join(MOVIE_DB_DIR, 'movies_by_day.pkl.zip')
+
+# Ensure movie_db directory exists
+os.makedirs(MOVIE_DB_DIR, exist_ok=True)
+
+# Download and unzip movies_by_day.pkl if missing
+if not os.path.exists(PKL_PATH):
+    print('movies_by_day.pkl not found. Downloading...')
+    urllib.request.urlretrieve(PKL_ZIP_URL, PKL_ZIP_PATH)
+    with zipfile.ZipFile(PKL_ZIP_PATH, 'r') as zip_ref:
+        zip_ref.extractall(MOVIE_DB_DIR)
+    os.remove(PKL_ZIP_PATH)
+    print('movies_by_day.pkl downloaded and extracted.')
+
 # Load the binary index and metadata once at startup
-with open(os.path.join(os.path.dirname(__file__), 'movie_db', 'movies_by_day.pkl'), 'rb') as pklfile:
+with open(PKL_PATH, 'rb') as pklfile:
     db = pickle.load(pklfile)
     movies_by_day_metadata = db.get('metadata', {})
     movies_by_day_index = db.get('index', {})
@@ -78,7 +100,8 @@ async def index(request: Request, date: str = Query(None, description="Date in M
         "max_date": datetime.now().strftime('%Y-%m-%d'),
         "sort_by": sort,
         "popularity_max": movies_by_day_metadata.get("avg_popularity_over_10", 100) or 100,
-        "current_date_str": current_date_str
+        "current_date_str": current_date_str,
+        "version": VERSION
     })
 
 @app.get("/movies/today")
@@ -98,6 +121,7 @@ async def search_page(request: Request):
     return templates.TemplateResponse(request, "search.html", {
         "request": request,
         "popularity_max": movies_by_day_metadata.get("avg_popularity_over_10", 100) or 100,
+        "version": VERSION
     })
 
 @app.get("/movies/lookup")
@@ -331,5 +355,11 @@ async def about(request: Request):
             "author": "Jason A. Cox",
             "project": "Open source project for movie data exploration."
         },
-        "current_year": datetime.now().year
+        "current_year": datetime.now().year,
+        "version": VERSION
     })
+
+@app.get("/version")
+async def version():
+    """Return the current MoviesThisDay app version."""
+    return {"version": VERSION}
