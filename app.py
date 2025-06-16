@@ -69,21 +69,30 @@ def filter_movies(movies, current_year, today_date):
     ]
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, date: str = Query(None, description="Date in MM-DD format"), sort: str = Query('popularity', description="Sort by field")):
-    """Render the main page with movies for a given day, sorted and filtered."""
+async def index(request: Request, date: str = Query(None, description="Date in MM-DD format"), sort: str = Query('popularity', description="Sort by field"), client_date: str = Query(None, description="Client's local date in YYYY-MM-DD format", alias="client_date")):
+    """Render the main page with movies for a given day, sorted and filtered. Uses client_date for today logic and as default if no date is provided."""
+    # Determine the date to use
+    if client_date:
+        try:
+            client_dt = datetime.strptime(client_date, "%Y-%m-%d")
+        except Exception:
+            client_dt = datetime.now()
+    else:
+        client_dt = datetime.now()
     if date:
-        # Accept MM-DD or MM_DD
         mm_dd = date.replace('-', '_')
         try:
             dt = datetime.strptime(date, "%m-%d")
             today_str = dt.strftime('%B %d')
         except Exception:
             today_str = date
+        display_date = f"{client_dt.year}-{date}"
     else:
-        mm_dd = datetime.now().strftime('%m_%d')
-        today_str = datetime.now().strftime('%B %d')
-    current_year = datetime.now().year
-    today_date = datetime.now().date()
+        mm_dd = client_dt.strftime('%m_%d')
+        today_str = client_dt.strftime('%B %d')
+        display_date = client_dt.strftime('%Y-%m-%d')
+    current_year = client_dt.year
+    today_date = client_dt.date()
     movies = filter_movies(movies_by_day_index.get(mm_dd, []), current_year, today_date)
     # Sorting logic
     if sort == 'name':
@@ -92,7 +101,7 @@ async def index(request: Request, date: str = Query(None, description="Date in M
         movies.sort(key=lambda m: int(m.get('release_year', 0)), reverse=True)
     else:  # Default to popularity
         movies.sort(key=lambda m: float(m.get('popularity', 0)), reverse=True)
-    current_date_str = datetime.now().strftime('%B %d')
+    current_date_str = client_dt.strftime('%B %d')
     return templates.TemplateResponse(request, "index.html", {
         "request": request,
         "movies": movies,
@@ -101,7 +110,9 @@ async def index(request: Request, date: str = Query(None, description="Date in M
         "sort_by": sort,
         "popularity_max": movies_by_day_metadata.get("avg_popularity_over_10", 100) or 100,
         "current_date_str": current_date_str,
-        "version": VERSION
+        "version": VERSION,
+        "client_date": client_dt.strftime('%Y-%m-%d'),
+        "display_date": display_date
     })
 
 @app.get("/movies/today")

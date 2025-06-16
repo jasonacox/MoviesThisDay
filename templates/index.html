@@ -104,12 +104,25 @@
         function goToDate() {
             const dateInput = document.getElementById('dateInput').value;
             if (dateInput) {
-                // Use the input value directly (YYYY-MM-DD)
                 const [yyyy, mm, dd] = dateInput.split('-');
-                window.location.href = `/?date=${mm}-${dd}`;
+                const url = new URL(window.location.href);
+                url.searchParams.set('date', `${mm}-${dd}`);
+                // Always preserve the original client_date if present
+                if (!url.searchParams.has('client_date')) {
+                    url.searchParams.set('client_date', getLocalDateString());
+                }
+                window.location.href = url.pathname + '?' + url.searchParams.toString();
             }
         }
-
+        function setClientDateParam() {
+            // On first load, if client_date is not present, reload with it
+            const url = new URL(window.location.href);
+            if (!url.searchParams.has('client_date')) {
+                const localDate = getLocalDateString();
+                url.searchParams.set('client_date', localDate);
+                window.location.replace(url.toString());
+            }
+        }
         function getLocalDateString() {
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -174,6 +187,7 @@
         }
         // Set calendar to current date on load, or to the date in the URL if present
         window.addEventListener('DOMContentLoaded', () => {
+            setClientDateParam();
             const input = document.getElementById('dateInput');
             const urlParams = new URLSearchParams(window.location.search);
             const dateParam = urlParams.get('date');
