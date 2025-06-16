@@ -56,10 +56,18 @@
       border-radius: 7px;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
+    .form-control::placeholder {
+      color: #b6c6e3;
+      opacity: 1;
+      font-weight: 400;
+    }
     .form-control:focus {
       border-color: #2563eb;
       box-shadow: 0 0 0 2px #60a5fa33;
       background: #f0f6ff;
+    }
+    .form-label {
+      margin-bottom: 0.18rem;
     }
     @media (max-width: 991px) {
       .row.flex-lg-nowrap { flex-wrap: wrap !important; }
@@ -76,12 +84,12 @@
     <nav class="d-flex align-items-center ms-auto">
       <a class="nav-link d-inline px-2 {% if request.url.path == '/' %}active{% endif %}" href="/">Home</a>
       <a class="nav-link d-inline px-2 {% if request.url.path == '/about' %}active{% endif %}" href="/about">About</a>
-      <a class="nav-link d-inline px-2 {% if request.url.path == '/movies/search' %}active{% endif %}" href="/movies/search">Search</a>
+      <a class="nav-link d-inline px-2 {% if request.url.path == '/search' %}active{% endif %}" href="/search">Search</a>
     </nav>
   </div>
   <div class="container" style="padding-top:80px;">
     <div class="row flex-lg-nowrap">
-      <div class="col-lg-3 mb-4 search-sidebar d-flex flex-column align-items-center justify-content-start sticky-lg-top" style="top:80px; margin-top:32px; max-height:calc(100vh - 220px); overflow:auto;">
+      <div class="col-lg-3 mb-4 search-sidebar d-flex flex-column align-items-center justify-content-start sticky-lg-top" style="top:80px; margin-top:38px; max-height:calc(100vh - 200px); overflow:auto;">
         <h4 class="mb-3">Search Movies</h4>
         <form id="searchForm" onsubmit="searchMovies(); return false;" style="width:100%; max-width:340px;">
           <div class="mb-2">
@@ -112,8 +120,10 @@
             <label class="form-label">Studio (regex)</label>
             <input type="text" class="form-control" name="studio" placeholder="e.g. Warner">
           </div>
-          <button type="submit" class="btn btn-primary w-100 mt-2">Search</button>
-          <button type="button" class="btn btn-outline-secondary w-100 mt-2" onclick="clearSearchForm()">Clear</button>
+          <div class="d-flex gap-2 mt-2">
+            <button type="submit" class="btn w-50" id="searchBtn" style="background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%); color: #fff; font-weight: 600; border: none;">Search</button>
+            <button type="button" class="btn btn-outline-secondary w-50" onclick="clearSearchForm()">Clear</button>
+          </div>
         </form>
       </div>
       <div class="col-lg-9 d-flex flex-column" style="margin-top:0px; height: 90vh; padding-bottom:70px;">
@@ -156,8 +166,12 @@
     let currentPage = 1;
     const pageSize = 25;
     let lastResults = [];
-
+    var popularity_max = 100;
+    // Set popularity_max from backend Jinja context if available, else default to 100
+    // prettier-ignore
+    popularity_max = parseFloat("{{ popularity_max|default(100)|float }}");
     function renderTablePage(page) {
+      lastResults.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)); // Sort by popularity descending
       const table = document.getElementById('resultsTable');
       const body = document.getElementById('resultsBody');
       const pageInfo = document.getElementById('pageInfo');
@@ -177,11 +191,20 @@
       const end = Math.min(start + pageSize, total);
       for (let i = start; i < end; i++) {
         const movie = lastResults[i];
+        const pop = movie.popularity || 0;
+        // 50% width is popularity_max, 100% is 2*popularity_max
+        let pop_pct = popularity_max > 0 ? (pop / (2 * popularity_max)) * 100 : 0;
+        if (pop_pct > 100) pop_pct = 100;
         body.innerHTML += `<tr>
           <td style="word-break:break-word; white-space:normal;">${movie.title || ''}</td>
           <td>${movie.release_date || ''}</td>
           <td>${movie.runtime ? movie.runtime + ' min' : '-'}</td>
-          <td>${movie.popularity ? Math.round(movie.popularity) : '-'}</td>
+          <td>
+            <div style="background:#e0e7ef; border-radius:6px; height:18px; width:100px; position:relative;">
+              <div style="background:linear-gradient(90deg,#2563eb,#60a5fa); height:100%; border-radius:6px; width:${Math.round(pop_pct)}%; transition:width 0.3s;"></div>
+              <span style="position:absolute; left:8px; top:0; font-size:0.95em; color:#222; line-height:18px; font-weight:500;">${pop ? Math.round(pop) : '-'}</span>
+            </div>
+          </td>
           <td>${movie.imdb_id ? `<a href='https://www.imdb.com/title/${movie.imdb_id}' target='_blank'>IMDB</a>` : '-'}</td>
           <td>${movie.production_companies || '-'}</td>
           <td>${movie.omdb_genre || '-'}</td>
@@ -228,6 +251,10 @@
           spinner.style.display = 'none';
           if (data.results && data.results.length > 0) {
             lastResults = data.results;
+            // Try to get avg_popularity_over_10 from backend metadata if available
+            if (data.metadata && data.metadata.avg_popularity_over_10) {
+              popularity_max = data.metadata.avg_popularity_over_10;
+            }
             currentPage = 1;
             renderTablePage(currentPage);
             noResults.style.display = 'none';

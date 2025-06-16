@@ -90,12 +90,15 @@ async def movies_today():
     movies = filter_movies(movies_by_day_index.get(today, []), current_year, today_date)
     return JSONResponse(content={"movies": movies, "metadata": movies_by_day_metadata})
 
-@app.get("/movies/search", response_class=HTMLResponse)
+@app.get("/search", response_class=HTMLResponse)
 async def search_page(request: Request):
     """
     Render the modern search page for MoviesToday with search fields and results table.
     """
-    return templates.TemplateResponse(request, "search.html", {"request": request})
+    return templates.TemplateResponse(request, "search.html", {
+        "request": request,
+        "popularity_max": movies_by_day_metadata.get("avg_popularity_over_10", 100) or 100,
+    })
 
 @app.get("/movies/lookup")
 async def movies_lookup(

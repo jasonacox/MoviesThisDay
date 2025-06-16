@@ -15,7 +15,7 @@ A modern FastAPI web application and API for exploring movies released on this d
 
 ## Web UI
 - `/` — Main page: Browse movies released on today's date or any selected date
-- `/movies/search` — Advanced search page with sidebar form, paginated results, and modern UI
+- `/search` — Advanced search page with sidebar form, paginated results, and modern UI
 - `/about` — About page with project info, usage, API examples, and GitHub link
 
 <img width="1279" alt="image" src="https://github.com/user-attachments/assets/16f3a64a-34f2-4324-b0f1-3dade0838cc2" />

@@ -32,7 +32,7 @@ index = defaultdict(list)
 LANGUAGES = ['en']          # Only include English movies
 ADULT = ['false']           # Only include non-adult movies
 RUNTIME = 20                # Minimum runtime in minutes
-POPULARITY_THRESHOLD = 10   # Minimum popularity to consider fetching OMDB data
+POPULARITY_THRESHOLD = 9   # Minimum popularity to consider fetching OMDB data
 DEBUG = False               # Set to True for debug output
 OMDB_RAW = "omdb_raw.jsonl" # Raw OMDb data file
 
@@ -135,7 +135,7 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
             if imdb_id and OMDB_API_KEY:
                 if imdb_id in omdb_cache:
                     omdb_json = omdb_cache[imdb_id]
-                elif popularity >= POPULARTIY_THRESHOLD:
+                elif popularity >= POPULARITY_THRESHOLD:
                     for attempt in range(3):
                         try:
                             omdb_resp = omdb_session.get(f'http://www.omdbapi.com/?i={imdb_id}&apikey={OMDB_API_KEY}', timeout=10)
