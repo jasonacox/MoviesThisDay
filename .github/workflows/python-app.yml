@@ -25,4 +25,4 @@ jobs:
         pip install pytest
 
     - name: Run tests
-      run: pytest --maxfail=1 --disable-warnings --cov=app.py
+      run: pytest --maxfail=1 --disable-warnings
