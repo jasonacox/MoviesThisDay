@@ -32,7 +32,7 @@ index = defaultdict(list)
 LANGUAGES = ['en']          # Only include English movies
 ADULT = ['false']           # Only include non-adult movies
 RUNTIME = 20                # Minimum runtime in minutes
-POPULARITY_THRESHOLD = 9   # Minimum popularity to consider fetching OMDB data
+POPULARITY_THRESHOLD = 10   # Minimum popularity to consider fetching OMDB data
 DEBUG = False               # Set to True for debug output
 OMDB_RAW = "omdb_raw.jsonl" # Raw OMDb data file
 

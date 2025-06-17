@@ -55,6 +55,10 @@ curl -G --data-urlencode 'title=star' --data-urlencode 'release_year=1977' 'http
 curl -G --data-urlencode 'genre=Action' 'http://localhost:8000/movies/by-genre'
 ```
 
+### Interactive API Documentation
+
+- Explore and test all API endpoints with **Swagger UI** at: [http://localhost:8000/docs](http://localhost:8000/docs) (or [https://moviesthisday.com/docs](https://moviesthisday.com/docs) in production)
+
 ## Data File Auto-Download
 
 On first run, if the required `movie_db/movies_by_day.pkl` data file is missing, the app will automatically download and unzip it from a public source. No manual download is required for a fresh install.

@@ -10,26 +10,39 @@ Features:
 - Modern, responsive UI with advanced search and navigation
 - Robust input validation and helpful error messages for all endpoints
 - API endpoints for integration and data exploration
-- Author: Jason A. Cox
+
+Author: 
+- Jason A. Cox, 2025 June 15
 - Project: https://github.com/jasonacox/MoviesToday
 """
 
-from fastapi import FastAPI, Request, Query, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-import pickle
-from datetime import datetime
 import os
+import pickle
 import re
 import urllib.request
 import zipfile
+from datetime import datetime
 
-VERSION = "0.1.1"
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+
+VERSION = "0.1.2"
 
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
 
 app = FastAPI()
+
+# Log header with version information at startup
+print(f"""
+=====================================================
+  MoviesThisDay v{VERSION}
+  Author: Jason A. Cox
+  Project: https://github.com/jasonacox/MoviesToday
+  Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+=====================================================
+""")
 
 # Set up Jinja2 templates
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
@@ -60,7 +73,18 @@ with open(PKL_PATH, 'rb') as pklfile:
     movies_by_day_index = db.get('index', {})
 
 def filter_movies(movies, current_year, today_date):
-    """Filter movies by popularity, age, and release date not in the future."""
+    """
+    Filter a list of movies by popularity, age, and release date.
+    - Only includes movies with popularity above POPULARITY_THRESHOLD.
+    - Only includes movies released within AGE_LIMIT years of the current year.
+    - Excludes movies with a release date in the future.
+    Args:
+        movies (list): List of movie dicts.
+        current_year (int): The year to use for age filtering.
+        today_date (date): The current date for future filtering.
+    Returns:
+        list: Filtered list of movies.
+    """
     return [
         m for m in movies
         if float(m.get('popularity', 0)) > POPULARITY_THRESHOLD
@@ -70,7 +94,17 @@ def filter_movies(movies, current_year, today_date):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, date: str = Query(None, description="Date in MM-DD format"), sort: str = Query('popularity', description="Sort by field"), client_date: str = Query(None, description="Client's local date in YYYY-MM-DD format", alias="client_date")):
-    """Render the main page with movies for a given day, sorted and filtered. Uses client_date for today logic and as default if no date is provided."""
+    """
+    Render the main MoviesThisDay page with movies for a given day, sorted and filtered.
+    Uses client_date for all 'today' logic and as the default if no date is provided.
+    Args:
+        request (Request): FastAPI request object.
+        date (str, optional): Date in MM-DD format. Defaults to None.
+        sort (str, optional): Field to sort by ('popularity', 'name', 'year'). Defaults to 'popularity'.
+        client_date (str, optional): Client's local date in YYYY-MM-DD format. Defaults to None.
+    Returns:
+        HTMLResponse: Rendered index.html template.
+    """
     # Determine the date to use
     if client_date:
         try:
@@ -117,7 +151,12 @@ async def index(request: Request, date: str = Query(None, description="Date in M
 
 @app.get("/movies/today")
 async def movies_today():
-    """Return today's movies as JSON, filtered by popularity, age, and release date."""
+    """
+    Return today's movies as JSON, filtered by popularity, age, and release date.
+
+    Returns:
+        JSONResponse: A JSON object containing today's movies (filtered) and metadata.
+    """
     today = datetime.now().strftime('%m_%d')
     current_year = datetime.now().year
     today_date = datetime.now().date()
@@ -128,6 +167,12 @@ async def movies_today():
 async def search_page(request: Request):
     """
     Render the modern search page for MoviesThisDay with search fields and results table.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+
+    Returns:
+        TemplateResponse: Rendered search.html template with context variables.
     """
     return templates.TemplateResponse(request, "search.html", {
         "request": request,
@@ -140,14 +185,28 @@ async def movies_lookup(
     imdb_id: str = Query(None),
     title: str = Query(None, description="Regex pattern for title"),
     release_date: str = Query(None),
-    id: str = Query(None),
+    movie_id: str = Query(None, alias="id"),
     release_year: str = Query(None),
     runtime: str = Query(None, description="e.g. >120, <90, =100, 90-120"),
     genre: str = Query(None, description="Regex pattern for OMDb genre"),
     studio: str = Query(None, description="Regex pattern for production company name")
 ):
-    # Validate at least one parameter is provided
-    if not any([imdb_id, title, release_date, id, release_year, runtime, genre, studio]):
+    """
+    Search for movies matching one or more query parameters.
+    Supports regex for title, genre, and studio. Validates input and returns matching movies.
+    Args:
+        imdb_id (str, optional): IMDb ID.
+        title (str, optional): Regex pattern for title.
+        release_date (str, optional): Release date in YYYY-MM-DD.
+        movie_id (str, optional): Internal movie ID.
+        release_year (str, optional): 4-digit year.
+        runtime (str, optional): Runtime filter (e.g. >120, <90, =100, 90-120).
+        genre (str, optional): Regex pattern for OMDb genre.
+        studio (str, optional): Regex pattern for production company name.
+    Returns:
+        JSONResponse: Matching movies and count.
+    """
+    if not any([imdb_id, title, release_date, movie_id, release_year, runtime, genre, studio]):
         raise HTTPException(status_code=400, detail="Provide at least one query parameter: imdb_id, title, release_date, id, release_year, runtime, genre, or studio.")
     # Validate regex fields
     if title is not None:
@@ -155,27 +214,27 @@ async def movies_lookup(
             raise HTTPException(status_code=400, detail="Empty 'title' parameter. Provide a non-empty title regex pattern.")
         try:
             re.compile(title, re.IGNORECASE)
-        except re.error:
-            raise HTTPException(status_code=400, detail="Invalid regex pattern for 'title'. Provide a valid regex string.")
+        except re.error as exc:
+            raise HTTPException(status_code=400, detail="Invalid regex pattern for 'title'. Provide a valid regex string.") from exc
     if genre is not None:
         if not genre.strip():
             raise HTTPException(status_code=400, detail="Empty 'genre' parameter. Provide a non-empty genre regex pattern.")
         try:
             re.compile(genre, re.IGNORECASE)
-        except re.error:
-            raise HTTPException(status_code=400, detail="Invalid regex pattern for 'genre'. Provide a valid regex string.")
+        except re.error as exc:
+            raise HTTPException(status_code=400, detail="Invalid regex pattern for 'genre'. Provide a valid regex string.") from exc
     if studio is not None:
         if not studio.strip():
             raise HTTPException(status_code=400, detail="Empty 'studio' parameter. Provide a non-empty studio regex pattern.")
         try:
             re.compile(studio, re.IGNORECASE)
-        except re.error:
-            raise HTTPException(status_code=400, detail="Invalid regex pattern for 'studio'. Provide a valid regex string.")
+        except re.error as exc:
+            raise HTTPException(status_code=400, detail="Invalid regex pattern for 'studio'. Provide a valid regex string.") from exc
     if release_date is not None:
         try:
             datetime.strptime(release_date, "%Y-%m-%d")
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid 'release_date' format. Provide YYYY-MM-DD, e.g. 1999-03-31.")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid 'release_date' format. Provide YYYY-MM-DD, e.g. 1999-03-31.") from exc
     if release_year is not None:
         if not release_year.isdigit() or len(release_year) != 4:
             raise HTTPException(status_code=400, detail="Invalid 'release_year'. Provide a 4-digit year, e.g. 1999.")
@@ -186,14 +245,11 @@ async def movies_lookup(
     results = all_movies
     if imdb_id:
         results = [m for m in results if m.get('imdb_id') == imdb_id]
-    if id:
-        results = [m for m in results if str(m.get('id')) == str(id)]
+    if movie_id:
+        results = [m for m in results if str(m.get('id')) == str(movie_id)]
     if title:
-        try:
-            pattern = re.compile(title, re.IGNORECASE)
-            results = [m for m in results if m.get('title') and pattern.search(m['title'])]
-        except re.error:
-            return JSONResponse(content={"error": "Invalid regex pattern for title."}, status_code=400)
+        pattern = re.compile(title, re.IGNORECASE)
+        results = [m for m in results if m.get('title') and pattern.search(m['title'])]
     if release_date:
         results = [m for m in results if m.get('release_date') == release_date]
     if release_year:
@@ -222,21 +278,22 @@ async def movies_lookup(
                 return False
         results = [m for m in results if runtime_match(m.get('runtime'), runtime)]
     if genre:
-        try:
-            pattern = re.compile(genre, re.IGNORECASE)
-            results = [m for m in results if m.get('omdb_genre') and pattern.search(m['omdb_genre'])]
-        except re.error:
-            return JSONResponse(content={"error": "Invalid regex pattern for genre."}, status_code=400)
+        pattern = re.compile(genre, re.IGNORECASE)
+        results = [m for m in results if m.get('omdb_genre') and pattern.search(m['omdb_genre'])]
     if studio:
-        try:
-            pattern = re.compile(studio, re.IGNORECASE)
-            results = [m for m in results if m.get('production_companies') and pattern.search(m['production_companies'])]
-        except re.error:
-            return JSONResponse(content={"error": "Invalid regex pattern for studio."}, status_code=400)
+        pattern = re.compile(studio, re.IGNORECASE)
+        results = [m for m in results if m.get('production_companies') and pattern.search(m['production_companies'])]
     return JSONResponse(content={"results": results, "count": len(results)})
 
 @app.get("/movies/by-imdb/{imdb_id}")
 async def movie_by_imdb(imdb_id: str):
+    """
+    Get a single movie by its IMDb ID.
+    Args:
+        imdb_id (str): IMDb ID of the movie.
+    Returns:
+        JSONResponse: Movie dict if found, else error message.
+    """
     for movies in movies_by_day_index.values():
         for m in movies:
             if m.get('imdb_id') == imdb_id:
@@ -245,6 +302,13 @@ async def movie_by_imdb(imdb_id: str):
 
 @app.get("/movies/by-title")
 async def movie_by_title(title: str = Query(..., description="Regex pattern for title")):
+    """
+    Get movies matching a title regex pattern.
+    Args:
+        title (str): Regex pattern for title.
+    Returns:
+        JSONResponse: Matching movies and count.
+    """
     if not title or not title.strip():
         raise HTTPException(status_code=400, detail="Missing or empty 'title' parameter. Provide a non-empty title regex pattern, e.g. ?title=matrix")
     try:
@@ -260,6 +324,13 @@ async def movie_by_title(title: str = Query(..., description="Regex pattern for 
 
 @app.get("/movies/by-release-date/{release_date}")
 async def movie_by_release_date(release_date: str):
+    """
+    Get movies by exact release date (YYYY-MM-DD).
+    Args:
+        release_date (str): Release date in YYYY-MM-DD format.
+    Returns:
+        JSONResponse: Matching movies and count.
+    """
     try:
         datetime.strptime(release_date, "%Y-%m-%d")
     except Exception:
@@ -273,6 +344,13 @@ async def movie_by_release_date(release_date: str):
 
 @app.get("/movies/by-year/{release_year}")
 async def movie_by_year(release_year: str):
+    """
+    Get movies by release year.
+    Args:
+        release_year (str): 4-digit year.
+    Returns:
+        JSONResponse: Matching movies and count.
+    """
     if not release_year.isdigit() or len(release_year) != 4:
         raise HTTPException(status_code=400, detail="Invalid 'release_year'. Provide a 4-digit year, e.g. 1999.")
     results = []
@@ -284,6 +362,13 @@ async def movie_by_year(release_year: str):
 
 @app.get("/movies/by-genre")
 async def movie_by_genre(genre: str = Query(..., description="Regex pattern for OMDb genre")):
+    """
+    Get movies matching a genre regex pattern (OMDb genre field).
+    Args:
+        genre (str): Regex pattern for OMDb genre.
+    Returns:
+        JSONResponse: Matching movies and count.
+    """
     if not genre or not genre.strip():
         raise HTTPException(status_code=400, detail="Missing or empty 'genre' parameter. Provide a non-empty genre regex pattern, e.g. ?genre=action")
     try:
@@ -299,6 +384,13 @@ async def movie_by_genre(genre: str = Query(..., description="Regex pattern for 
 
 @app.get("/movies/by-studio")
 async def movie_by_studio(studio: str = Query(..., description="Regex pattern for production company name")):
+    """
+    Get movies matching a studio regex pattern (production company name).
+    Args:
+        studio (str): Regex pattern for production company name.
+    Returns:
+        JSONResponse: Matching movies and count.
+    """
     if not studio or not studio.strip():
         raise HTTPException(status_code=400, detail="Missing or empty 'studio' parameter. Provide a non-empty regex pattern, e.g. ?studio=Warner.")
     try:
@@ -318,6 +410,10 @@ async def movies_by_day(mm_dd: str):
     """
     Get a JSON list of movies released on the specified MM-DD (e.g., 06-15).
     Returns movies for that day across all years, filtered and sorted by popularity (desc).
+    Args:
+        mm_dd (str): Date in MM-DD or MM_DD format.
+    Returns:
+        JSONResponse: Movies and count for the specified day.
     """
     # Accept MM-DD or MM_DD
     if not mm_dd or not re.match(r"^(0[1-9]|1[0-2])[-_](0[1-9]|[12][0-9]|3[01])$", mm_dd):
@@ -332,7 +428,9 @@ async def movies_by_day(mm_dd: str):
 @app.get("/movies/by-day")
 async def movies_by_day_missing():
     """
-    If the user accesses /movies/by-day/ without a date, return an error with usage instructions.
+    Return an error if /movies/by-day/ is accessed without a date.
+    Returns:
+        JSONResponse: Error message and usage instructions.
     """
     return JSONResponse(
         status_code=400,
@@ -344,33 +442,24 @@ async def movies_by_day_missing():
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
     """
-    Render an About page with information about the tool, usage, and project author.
+    Render the About page for MoviesThisDay.
+    Only version and current year are dynamic; all other content is static.
+    Args:
+        request (Request): FastAPI request object.
+    Returns:
+        HTMLResponse: Rendered about.html template.
     """
-    from datetime import datetime
     return templates.TemplateResponse(request, "about.html", {
         "request": request,
-        "title": "About | MoviesThisDay",
-        "about_info": {
-            "what": "MoviesThisDay is a simple tool to provide a list of movies made on this date in history. It uses a local TMDB-derived dataset and offers both a modern web UI and a robust API.",
-            "how": [
-                "Use the homepage (/) to browse movies released on today's date.",
-                "Use the date picker or navigation to view other days.",
-                "Access the API endpoints for advanced queries (see below)."
-            ],
-            "api_examples": [
-                {"desc": "Movies released today (JSON)", "cmd": "curl -X GET 'http://localhost:8000/movies/today'"},
-                {"desc": "Movies by day (MM-DD)", "cmd": "curl -X GET 'http://localhost:8000/movies/by-day/06-15'"},
-                {"desc": "Search by title (regex)", "cmd": "curl -G --data-urlencode 'title=matrix' 'http://localhost:8000/movies/by-title'"},
-                {"desc": "Search by studio (regex)", "cmd": "curl -G --data-urlencode 'studio=Warner' 'http://localhost:8000/movies/by-studio'"}
-            ],
-            "author": "Jason A. Cox",
-            "project": "Open source project for movie data exploration."
-        },
         "current_year": datetime.now().year,
         "version": VERSION
     })
 
 @app.get("/version")
 async def version():
-    """Return the current MoviesThisDay app version."""
+    """
+    Return the current MoviesThisDay app version as JSON.
+    Returns:
+        dict: Version string.
+    """
     return {"version": VERSION}

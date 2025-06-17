@@ -62,9 +62,9 @@
       <span class="ms-2 tagline d-none d-md-inline">Discover movies released on this day in history</span>
     </div>
     <nav class="d-flex align-items-center ms-auto">
-      <a class="nav-link d-inline px-2 {% if request.url.path == '/' %}active{% endif %}" href="/">Home</a>
-      <a class="nav-link d-inline px-2 {% if request.url.path == '/about' %}active{% endif %}" href="/about">About</a>
-      <a class="nav-link d-inline px-2 {% if request.url.path == '/search' %}active{% endif %}" href="/search">Search</a>
+      <a class="nav-link d-inline px-2" href="/">Home</a>
+      <a class="nav-link d-inline px-2 active" href="/about">About</a>
+      <a class="nav-link d-inline px-2" href="/search">Search</a>
     </nav>
   </div>
   <div class="container mt-5 pt-5">
@@ -72,30 +72,30 @@
       <div class="card-body">
         <h2 class="card-title mb-3">About MoviesThisDay</h2>
         <h5>What is this tool?</h5>
-        <p>{{ about_info.what }}</p>
+        <p>MoviesThisDay is a simple tool to provide a list of movies made on this date in history. It uses a local TMDB and OMDb-derived dataset and offers both a modern web UI and a robust API.</p>
         <h5>How to use this tool?</h5>
         <ul>
-          {% for how in about_info.how %}
-          <li>{{ how }}</li>
-          {% endfor %}
+          <li>Use the homepage (/) to browse movies released on today's date.</li>
+          <li>Use the date picker or navigation to view other days.</li>
+          <li>Access the API endpoints for advanced queries (see below).</li>
         </ul>
         <h6>API Examples:</h6>
         <ul class="mb-3">
-          {% set base_url = request.base_url | string | trim('/') %}
-          {% for api in about_info.api_examples %}
-          <li><b>{{ api.desc }}:</b> <br><code>{{ api.cmd.replace('http://localhost:8000', base_url) }}</code></li>
-          {% endfor %}
+          <li><b>Movies released today (JSON):</b> <br><code>curl -X GET 'https://moviesthisday.com/movies/today'</code></li>
+          <li><b>Movies by day (MM-DD):</b> <br><code>curl -X GET 'https://moviesthisday.com/movies/by-day/06-15'</code></li>
+          <li><b>Search by title (regex):</b> <br><code>curl -G --data-urlencode 'title=matrix' 'https://moviesthisday.com/movies/by-title'</code></li>
+          <li><b>Search by studio (regex):</b> <br><code>curl -G --data-urlencode 'studio=Warner' 'https://moviesthisday.com/movies/by-studio'</code></li>
         </ul>
         <h5>About the Author & Project</h5>
-        <p><b>Author:</b> {{ about_info.author }}<br>
-        <b>Project:</b> {{ about_info.project }}<br>
+        <p><b>Author:</b> Jason A. Cox<br>
+        <b>Project:</b> Open source project for movie data exploration.<br>
         <br>
-        <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">See the MoviesThisDay GitHub for more API details and documentation.</a></p>
+        See the <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay GitHub</a> for more API details and documentation.</p>
       </div>
     </div>
   </div>
   <div class="footer text-center" style="font-size:0.95rem;">
-    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
+    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }} | &copy; {{ current_year }}
   </div>
 </body>
 </html>
