@@ -1,3 +1,5 @@
+[![CI](https://github.com/jasonacox/MoviesThisDay/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/jasonacox/MoviesThisDay/actions/workflows/python-app.yml)
+
 # MoviesThisDay
 
 A modern FastAPI web application and API for exploring movies released on this day in history.
