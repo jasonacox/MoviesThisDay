@@ -140,23 +140,25 @@
             <button id="nextPage" class="btn btn-outline-secondary btn-sm">Next &raquo;</button>
           </div>
           <div id="searchPlaceholder" class="alert alert-info mt-3" style="display:block; background-color: #e6fbe6; border-color: #b6e2b6; color: #225522;">
-            Enter search criteria in the form on the left. All fields are filters—add more to narrow down your results!
+            Enter search criteria in the form. All fields are filters—add more to narrow down your results!
           </div>
           <div id="noResults" class="alert alert-warning mt-3" style="display:none;">No results found.</div>
-          <table class="table table-striped table-hover shadow mb-0 results-table" id="resultsTable" style="table-layout:fixed; display:none;">
-            <thead>
-              <tr>
-                <th style="width:auto; min-width:120px;">Title</th>
-                <th style="width:120px;">Release</th>
-                <th style="width:80px;">Runtime</th>
-                <th style="width:120px;">Popularity</th>
-                <th style="width:70px;">IMDB</th>
-                <th style="width:120px;">Studio</th>
-                <th style="width:120px;">Genre</th>
-              </tr>
-            </thead>
-            <tbody id="resultsBody"></tbody>
-          </table>
+          <div style="overflow-x:auto; width:100%;">
+            <table class="table table-striped table-hover shadow mb-0 results-table" id="resultsTable" style="table-layout:fixed; display:none; min-width:800px;">
+              <thead>
+                <tr>
+                  <th style="width:auto; min-width:120px;">Title</th>
+                  <th style="width:120px;">Release</th>
+                  <th style="width:80px;">Runtime</th>
+                  <th style="width:120px;">Popularity</th>
+                  <th style="width:70px;">IMDB</th>
+                  <th style="width:120px;">Studio</th>
+                  <th style="width:120px;">Genre</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
