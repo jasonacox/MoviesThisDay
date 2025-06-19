@@ -498,7 +498,7 @@ async def details_movie(request: Request, imdb_id: str):
             break
     if not movie:
         return HTMLResponse(content="<h2>Movie not found</h2>", status_code=404)
-    return templates.TemplateResponse("details.html", {
+    return templates.TemplateResponse(request, "details.html", {
         "request": request,
         "movie": movie,
         "version": VERSION

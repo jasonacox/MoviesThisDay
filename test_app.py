@@ -141,3 +141,62 @@ def test_docs_and_openapi():
     assert resp.status_code == 200
     resp = client.get("/openapi.json")
     assert resp.status_code == 200
+
+def test_details_page_found():
+    # Try a known movie (The Matrix) if present, else skip
+    resp = client.get("/details/tt0133093")
+    if resp.status_code == 200:
+        assert "text/html" in resp.headers["content-type"]
+        assert "Matrix" in resp.text or "matrix" in resp.text
+    else:
+        assert resp.status_code == 404
+        assert "Movie not found" in resp.text
+
+def test_details_page_not_found():
+    resp = client.get("/details/tt0000000")
+    assert resp.status_code == 404
+    assert "Movie not found" in resp.text
+
+def test_corrections_endpoint_success(monkeypatch):
+    # Patch CORRECTIONS_WRITABLE to True and file open to a dummy
+    from app import CORRECTIONS_WRITABLE, CORRECTIONS_FILE
+    if not CORRECTIONS_WRITABLE:
+        pytest.skip("Corrections file not writable in this environment")
+    data = {
+        "imdb_id": "tt0133093",
+        "correction": "Test correction",
+        "user_agent": "pytest",
+        "movie_title": "The Matrix"
+    }
+    resp = client.post("/corrections", data=data)
+    assert resp.status_code == 200
+    assert "Thank you" in resp.text
+
+def test_corrections_endpoint_invalid(monkeypatch):
+    # Too long correction
+    from app import CORRECTIONS_WRITABLE
+    if not CORRECTIONS_WRITABLE:
+        pytest.skip("Corrections file not writable in this environment")
+    data = {
+        "imdb_id": "tt0133093",
+        "correction": "x" * 2000,
+        "user_agent": "pytest",
+        "movie_title": "The Matrix"
+    }
+    resp = client.post("/corrections", data=data)
+    assert resp.status_code == 413 or resp.status_code == 500
+    assert "Oops" in resp.text
+
+def test_corrections_endpoint_not_writable(monkeypatch):
+    # Patch CORRECTIONS_WRITABLE to False
+    import app
+    monkeypatch.setattr(app, "CORRECTIONS_WRITABLE", False)
+    data = {
+        "imdb_id": "tt0133093",
+        "correction": "Test correction",
+        "user_agent": "pytest",
+        "movie_title": "The Matrix"
+    }
+    resp = client.post("/corrections", data=data)
+    assert resp.status_code == 500
+    assert "Oops" in resp.text
