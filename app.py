@@ -511,7 +511,7 @@ async def submit_correction(imdb_id: str = Form(...), correction: str = Form(...
     Returns Oops if file is not writable.
     """
     if not CORRECTIONS_WRITABLE:
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
         return PlainTextResponse("Oops! Something went wrong.", status_code=500)
     # Limit correction payload size to prevent abuse
     MAX_CORRECTION_LEN = 1000
