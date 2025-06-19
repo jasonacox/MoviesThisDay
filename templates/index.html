@@ -285,7 +285,7 @@
             if (!movie) {
                 // Fetch movie data if not in cache
                 try {
-                    const response = await fetch(`/api/movies/${movieId}`);
+                    const response = await fetch(`/movie/${movieId}`);
                     if (!response.ok) throw new Error('Failed to fetch movie data');
                     movie = await response.json();
                     movieCache[movieId] = movie; // Store in cache
@@ -351,9 +351,8 @@
                 let timeout;
                 link.addEventListener('mouseenter', function(e) {
                     timeout = setTimeout(() => {
-                        fetch(`/movie/${link.dataset.imdbId}`)
-                            .then(r => r.ok ? r.json() : null)
-                            .then(movie => { if (movie && !movie.error) createMovieHoverCard(movie, link); });
+                        // Pass imdbId string, not the link element, to createMovieHoverCard
+                        createMovieHoverCard(link.dataset.imdbId, link);
                     }, 200);
                 });
                 link.addEventListener('mouseleave', function(e) {
