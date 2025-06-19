@@ -1,8 +1,12 @@
 # MoviesThisDay Release Notes
 
 ## v0.1.6 (2025-06-19)
-- Version bump and maintenance updates.
-- (Add new changes here)
+- Date picker calendar now allows selecting any date, including future dates (no max restriction).
+- Date input: If a date is picked from the calendar, navigation is automatic; if manually edited, user must press Go or Enter.
+- Removed browser tooltip from movie title links (no more native title popover on hover).
+- Fixed Docker run.sh to use $(pwd) instead of $(PWD) for compatibility.
+- Added `python-multipart` to requirements.txt for FastAPI Form support.
+- General UI/UX polish and bugfixes.
 
 ## v0.1.5 (2025-06-19)
 - Added `/corrections` POST route for submitting movie corrections (configurable file, robust error handling, Docker/env support).
