@@ -6,3 +6,4 @@ httpx
 pytest
 requests
 colorama
+python-multipart

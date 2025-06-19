@@ -20,7 +20,7 @@ docker run -d \
   --health-retries=3 \
   -e TZ=America/Los_Angeles \
   -e CORRECTIONS_FILE=/data/corrections.jsonl \
-  -v $(PWD)/data:/data \
+  -v $(pwd)/data:/data \
   --log-opt max-size=10m \
   --log-opt max-file=3 \
   jasonacox/moviesthisday:latest

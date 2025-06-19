@@ -30,7 +30,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 import json
 
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
