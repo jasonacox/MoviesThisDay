@@ -1,5 +1,9 @@
 # MoviesThisDay Release Notes
 
+## v0.1.6 (2025-06-19)
+- Version bump and maintenance updates.
+- (Add new changes here)
+
 ## v0.1.5 (2025-06-19)
 - Added `/corrections` POST route for submitting movie corrections (configurable file, robust error handling, Docker/env support).
 - Added `/movie/{imdb_id}` route for JSON details of a movie by IMDb ID.
@@ -8,7 +12,7 @@
 - Improved documentation and docstrings across all scripts and endpoints.
 - Updated README to document new routes, correction workflow, and Docker usage.
 - General UI/UX improvements and code cleanup.
-- Date picker now auto-navigates when a date is picked from the calendar.
+- Date picker now auto-navigates when a date is picked from the calendar, but not when manually edited (manual edits require pressing Go or Enter).
 
 ## v0.1.4 (2025-06-18)
 - Added `/details/{imdb_id}` route and details page: full movie info, poster, ratings, and correction form.
