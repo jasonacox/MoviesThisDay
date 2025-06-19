@@ -277,7 +277,23 @@
                 lastClientDate = currentClientDate;
             }, 60000); // check every 60 seconds
         });
-        function createMovieHoverCard(movie, anchor) {
+        const movieCache = {}; // Global cache for movie data
+
+        async function createMovieHoverCard(movieId, anchor) {
+            // Check if movie data is in cache
+            let movie = movieCache[movieId];
+            if (!movie) {
+                // Fetch movie data if not in cache
+                try {
+                    const response = await fetch(`/api/movies/${movieId}`);
+                    if (!response.ok) throw new Error('Failed to fetch movie data');
+                    movie = await response.json();
+                    movieCache[movieId] = movie; // Store in cache
+                } catch (error) {
+                    console.error('Error fetching movie data:', error);
+                    return; // Exit if fetch fails
+                }
+            }
             // Remove any existing card
             let oldCard = document.getElementById('movie-hover-card');
             if (oldCard) oldCard.remove();
