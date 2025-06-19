@@ -69,13 +69,14 @@
   </div>
   <div class="container mt-5 pt-5">
     <div class="card shadow-sm">
-      <div class="card-body">
+      <div class="card-body position-relative">
+        <span class="badge bg-primary position-absolute top-0 end-0 m-3" style="font-size:1.1rem;">{{ "{:,}".format(movie_count) }} Movies</span>
         <h2 class="card-title mb-3">About MoviesThisDay</h2>
         <h5>What is this tool?</h5>
         <p>MoviesThisDay is a simple tool to provide a list of movies made on this date in history. It uses a local TMDB and OMDb-derived dataset and offers both a modern web UI and a robust API.</p>
         <h5>How to use this tool?</h5>
         <ul>
-          <li>Use the homepage (/) to browse movies released on today's date.</li>
+          <li>Use the homepage to browse movies released on today's date.</li>
           <li>Use the date picker or navigation to view other days.</li>
           <li>Access the API endpoints for advanced queries (see below).</li>
         </ul>
@@ -88,9 +89,7 @@
         </ul>
         <h5>About the Author & Project</h5>
         <p><b>Author:</b> Jason A. Cox<br>
-        <b>Project:</b> Open source project for movie data exploration.<br>
-        <br>
-        See the <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay GitHub</a> for more API details and documentation.</p>
+        <b>Project: </b><a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">https://github.com/jasonacox/MoviesThisDay</a></p>
       </div>
     </div>
   </div>

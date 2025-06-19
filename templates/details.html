@@ -72,16 +72,19 @@
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="movie-title">{{ movie.title }} {% if movie.release_year %}({{ movie.release_year }}){% endif %}</div>
         </div>
+        {% if movie.omdb_plot %}
+        <div class="mb-3" style="font-size:1.13rem; color:#444; font-style:italic; line-height:1.5;">{{ movie.omdb_plot }}</div>
+        {% endif %}
         <div class="movie-section"><span class="movie-label">Released:</span> <span class="movie-value">
 
           {% if movie.release_date %}{{ movie.release_date }}{% endif %}
         </span></div>
         <div class="movie-section"><span class="movie-label">Runtime:</span> <span class="movie-value">{% if movie.runtime %}{{ movie.runtime }} min{% else %}-{% endif %}</span></div>
-        <div class="movie-section"><span class="movie-label">Popularity:</span> <span class="movie-value">{{ movie.popularity }} | Vote Avg {{ movie.vote_average or '-' }} | Count: {{ movie.vote_count or '-' }} </span></div>
+        <div class="movie-section"><span class="movie-label">Popularity:</span> <span class="movie-value">{{ movie.popularity }} </span></div>
         <div class="movie-section"><span class="movie-label">Genres:</span> <span class="movie-value">{{ movie.omdb_genre or '-' }}</span></div>
         <div class="movie-section"><span class="movie-label">Studio:</span> <span class="movie-value">{{ movie.production_companies or '-' }}</span></div>
-        <div class="movie-section"><span class="movie-label">IMDB:</span>
-          <span class="movie-value"> ID: 
+        <div class="movie-section"><span class="movie-label">IMDB ID:</span>
+          <span class="movie-value">
             {% if movie.imdb_id %}
               <a class="imdb-link" href="https://www.imdb.com/title/{{ movie.imdb_id }}" target="_blank">{{ movie.imdb_id }}</a>
             {% else %}
@@ -93,8 +96,14 @@
             {% endif %}
           </span>
         </div>
-        <div class="movie-section"><span class="movie-label">TMDB ID:</span> <span class="movie-value">{{ movie.id or '-' }}</span></div>
-        <div class="movie-section"><span class="movie-label">Release Date:</span> <span class="movie-value">{{ movie.release_date or '-' }}</span></div>
+        <div class="movie-section"><span class="movie-label">TMDB ID:</span> <span class="movie-value">
+          {% if movie.id %}
+            <a href="https://www.themoviedb.org/movie/{{ movie.id }}" target="_blank">{{ movie.id }}</a>
+          {% else %}
+            -
+          {% endif %}
+          | Score {{ movie.vote_average or '-' }} | Count: {{ movie.vote_count or '-' }}
+        </span></div>
         <div class="movie-section"><span class="movie-label">Language:</span> <span class="movie-value">{{ movie.language or '-' }} | Original {{ movie.original_language or '-' }}</span></div>
         <div class="movie-section"><span class="movie-label">Box Office:</span> <span class="movie-value">{{ movie.omdb_box_office or '-' }}</span></div>
         <div class="mt-4" style="max-width:500px; margin:auto;">
@@ -116,6 +125,39 @@
       {% if movie.omdb_poster %}
       <div class="ms-4 d-none d-md-block" style="min-width:120px; max-width:180px; align-self:flex-start; margin-top:40px;">
         <img src="{{ movie.omdb_poster }}" alt="Poster" style="width:100%; max-width:180px; border-radius:8px; box-shadow:0 2px 12px rgba(30,41,59,0.10);">
+        {% if movie.omdb_imdb_rating %}
+        <div style="margin-top:18px; text-align:center;">
+          <div style="font-size:1.05em; color:#22223b; font-weight:600;">IMDB Rating</div>
+          <div style="display:flex; align-items:center; justify-content:center; gap:2px; margin-top:4px;">
+            {% set rating = movie.omdb_imdb_rating.split('/')[0] if '/' in movie.omdb_imdb_rating else movie.omdb_imdb_rating %}
+            {% set rating_val = rating|float %}
+            {% for i in range(1, 11) %}
+              {% if i <= rating_val|int %}
+                <span style="width:16px; height:16px; border-radius:3px; display:inline-block; background-color:#f5c518;"></span>
+              {% else %}
+                <span style="width:16px; height:16px; border-radius:3px; display:inline-block; background-color:#e5e7eb;"></span>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div style="font-size:0.98em; color:#444; margin-top:2px;">{{ rating_val }}/10</div>
+        </div>
+        {% endif %}
+        {% if movie.vote_average %}
+        <div style="margin-top:18px; text-align:center;">
+          <div style="font-size:1.05em; color:#22223b; font-weight:600;">TMDB Score</div>
+          <div style="display:flex; align-items:center; justify-content:center; gap:2px; margin-top:4px;">
+            {% set tmdb_score = movie.vote_average|float %}
+            {% for i in range(1, 11) %}
+              {% if i <= tmdb_score|round(0, 'floor') %}
+                <span style="width:16px; height:16px; border-radius:3px; display:inline-block; background-color:#60a5fa;"></span>
+              {% else %}
+                <span style="width:16px; height:16px; border-radius:3px; display:inline-block; background-color:#e5e7eb;"></span>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div style="font-size:0.98em; color:#444; margin-top:2px;">{{ tmdb_score }}/10</div>
+        </div>
+        {% endif %}
       </div>
       {% endif %}
     </div>

@@ -1,5 +1,15 @@
 # MoviesThisDay Release Notes
 
+## v0.1.5 (2025-06-19)
+- Added `/corrections` POST route for submitting movie corrections (configurable file, robust error handling, Docker/env support).
+- Added `/movie/{imdb_id}` route for JSON details of a movie by IMDb ID.
+- New interactive `correction_tool.py` for searching, selecting, and updating movie fields (with color, field selection, and release_year suggestion).
+- `build_db.py` applies updates from `updates.jsonl` before exporting the movie index, including moving movies if `release_date` changes.
+- Improved documentation and docstrings across all scripts and endpoints.
+- Updated README to document new routes, correction workflow, and Docker usage.
+- General UI/UX improvements and code cleanup.
+- Date picker now auto-navigates when a date is picked from the calendar.
+
 ## v0.1.4 (2025-06-18)
 - Added `/details/{imdb_id}` route and details page: full movie info, poster, ratings, and correction form.
 - Correction form now posts to a configurable file via the `CORRECTIONS_FILE` environment variable (default: `/data/corrections.jsonl`).

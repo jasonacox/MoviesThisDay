@@ -35,6 +35,7 @@ Website: [moviesthisday.com](https://moviesthisday.com)
 - `/movies/by-genre?genre=...` — Search by genre (regex)
 - `/movies/by-studio?studio=...` — Search by studio (regex)
 - `/movies/by-day/{mm_dd}` — Movies released on a specific MM-DD (all years)
+- `/movie/{imdb_id}` — Get all available details for a movie by IMDb ID (JSON, 404 if not found)
 
 ### Example API Usage
 

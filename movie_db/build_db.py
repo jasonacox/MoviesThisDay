@@ -226,6 +226,7 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
                     'omdb_box_office': row.get('omdb_box_office'),
                     'production_companies': row.get('production_companies', ''),
                     'omdb_poster': row.get('omdb_poster'),
+                    'omdb_plot': row.get('omdb_plot'),
                 }
                 index[this_day].append(movie)
                 added_count += 1
@@ -241,6 +242,59 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
     else:
         print("No movies with popularity > 10 found.")
 print(f"Processed {row_count} rows. Added {added_count} non-adult movies to index.")
+
+# --- Apply corrections from updates.jsonl (if present) ---
+def apply_updates_jsonl(idx, updates_file_path):
+    if not os.path.exists(updates_file_path):
+        print(f"No updates file found at {updates_file_path}. Skipping updates.")
+        return
+    print(f"Applying updates from {updates_file_path} (jsonl)...")
+    imdb_to_movie = {}
+    movie_to_day = {}
+    # Build lookup tables for imdb_id -> movie and movie -> MM_DD key
+    for day_key, day_movies in idx.items():
+        for mov in day_movies:
+            if mov.get('imdb_id'):
+                imdb_to_movie[mov['imdb_id']] = mov
+                movie_to_day[id(mov)] = day_key
+    with open(updates_file_path, 'r', encoding='utf-8') as updates_file:
+        for update_line in updates_file:
+            try:
+                update_obj = json.loads(update_line)
+                update_imdb_id = update_obj.get('imdb_id')
+                if not update_imdb_id:
+                    continue
+                mov = imdb_to_movie.get(update_imdb_id)
+                if mov:
+                    old_release_date = mov.get('release_date')
+                    # Apply all fields except imdb_id and id
+                    for k, v in update_obj.items():
+                        if k not in ('imdb_id', 'id'):
+                            mov[k] = v
+                    # If release_date changed, move movie to new MM_DD index
+                    new_release_date = mov.get('release_date')
+                    if new_release_date and new_release_date != old_release_date:
+                        # Remove from old MM_DD
+                        if old_release_date and len(old_release_date.split('-')) == 3:
+                            old_mmdd = f"{old_release_date.split('-')[1]}_{old_release_date.split('-')[2]}"
+                            if mov in idx.get(old_mmdd, []):
+                                idx[old_mmdd].remove(mov)
+                        # Add to new MM_DD
+                        if len(new_release_date.split('-')) == 3:
+                            new_mmdd = f"{new_release_date.split('-')[1]}_{new_release_date.split('-')[2]}"
+                            idx[new_mmdd].append(mov)
+                        # Update movie_to_day for this movie
+                        movie_to_day[id(mov)] = new_mmdd
+                    print(f"Updated {update_imdb_id}: {update_obj}")
+                else:
+                    print(f"Update for {update_imdb_id} not applied (not found in index)")
+            except json.JSONDecodeError as err:
+                print(f"Error parsing update line: {err}")
+
+# Apply updates if updates.jsonl exists
+updates_path = 'updates.jsonl'
+if os.path.exists(updates_path):
+    apply_updates_jsonl(index, updates_path)
 
 # Prepare metadata
 metadata = {
