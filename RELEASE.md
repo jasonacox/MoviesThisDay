@@ -1,5 +1,16 @@
 # MoviesThisDay Release Notes
 
+## v0.1.4 (2025-06-18)
+- Added `/details/{imdb_id}` route and details page: full movie info, poster, ratings, and correction form.
+- Correction form now posts to a configurable file via the `CORRECTIONS_FILE` environment variable (default: `/data/corrections.jsonl`).
+- Docker and `run.sh` updated to mount a persistent `data` directory and set `CORRECTIONS_FILE` for containerized deployments.
+- Correction file writability is checked at startup; if not writable, the correction endpoint returns an error.
+- Correction endpoint now returns a generic error message for all invalid or failed submissions.
+- IMDB link is now part of the IMDB ID in details view (not in the header).
+- If available, OMDb poster is shown as a thumbnail to the right of the details card.
+- Details page fields de-duplicated and improved for clarity and compactness.
+- README updated to document `/details/{imdb_id}` and new Docker/environment variable setup.
+
 ## v0.1.3 (2025-06-17)
 - Added GitHub Actions workflow for automated testing on push/PR.
 - Added build status badge to README.

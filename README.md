@@ -21,6 +21,7 @@ Website: [moviesthisday.com](https://moviesthisday.com)
 - `/` — Main page: Browse movies released on today's date or any selected date
 - `/search` — Advanced search page with sidebar form, paginated results, and modern UI
 - `/about` — About page with project info, usage, API examples, and GitHub link
+- `/details/{imdb_id}` — Movie details page: View all available information for a specific movie by IMDb ID, including poster, ratings, and a correction form
 
 <img width="1199" alt="image" src="https://github.com/user-attachments/assets/5d2a8d0a-95e0-4939-8b3d-c80195dad3a0" />
 
@@ -83,6 +84,8 @@ This will:
 - Pull and run the latest MoviesThisDay image
 - Expose the app on port 8000 (or your chosen port)
 - Set the timezone via the `TZ` environment variable (default: America/Los_Angeles)
+- Set the corrections file location via the `CORRECTIONS_FILE` environment variable (default: `/data/corrections.jsonl`)
+- Mount the local `$(PWD)/data` directory to `/data` in the container (corrections and other persistent files are stored here)
 - Automatically restart the container unless stopped
 - Provide a healthcheck for the container
 
@@ -94,10 +97,12 @@ docker run -d \
   -p 8000:8000 \
   --restart unless-stopped \
   -e TZ=America/Los_Angeles \
+  -e CORRECTIONS_FILE=/data/corrections.jsonl \
+  -v $(PWD)/data:/data \
   jasonacox/moviesthisday:latest
 ```
 
-See `run.sh` for a robust startup script with healthcheck and log tailing.
+See `run.sh` for a robust startup script with healthcheck, log tailing, and persistent data volume.
 
 ## Author & License
 - Author: Jason A. Cox

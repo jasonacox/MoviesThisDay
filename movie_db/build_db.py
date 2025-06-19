@@ -101,29 +101,39 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
         if popularity > 10:
             sum_popularity_over_10 += popularity
             count_popularity_over_10 += 1
-            
-        """
-        {"Title":"The Avengers","Year":"2012","Rated":"PG-13","Released":"04 May 2012","Runtime":"143 min","Genre":"Action, Sci-Fi","Director":"Joss Whedon","Writer":"Joss Whedon, Zak Penn","Actors":"Robert Downey Jr., Chris Evans, Scarlett Johansson","Plot":"Earth's mightiest heroes must come together and learn to fight as a team if they are going to stop the mischievous Loki and his alien army from enslaving humanity.","Language":"English, Russian","Country":"United States","Awards":"Nominated for 1 Oscar. 39 wins & 81 nominations total","Poster":"https://m.media-amazon.com/images/M/MV5BNGE0YTVjNzUtNzJjOS00NGNlLTgxMzctZTY4YTE1Y2Y1ZTU4XkEyXkFqcGc@._V1_SX300.jpg","Ratings":[{"Source":"Internet Movie Database","Value":"8.0/10"},{"Source":"Rotten Tomatoes","Value":"91%"},{"Source":"Metacritic","Value":"69/100"}],"Metascore":"69","imdbRating":"8.0","imdbVotes":"1,511,483","imdbID":"tt0848228","Type":"movie","DVD":"N/A","BoxOffice":"$623,357,910","Production":"N/A","Website":"N/A","Response":"True"}
-        
-        Key Fields:
-        - Title
-        - Released (e.g., "04 May 2012")
-        - imdbID (e.g., "tt0848228")
-        - Runtime (e.g., "143 min")
-        - Language (e.g., "English, Russian")
-        - Country (e.g., "United States")
-        - Awards (e.g., "Nominated for 1 Oscar. 39 wins & 81 nominations total")
-        - imdbRating (e.g., "8.0")
-        - imdbVotes (e.g., "1,511,483")
-        - Plot (e.g., "Earth's mightiest heroes must come together and learn to fight as a team if they are going to stop the mischievous Loki and his alien army from enslaving humanity.")
-        - Genre (e.g., "Action, Sci-Fi")
-        - Director (e.g., "Joss Whedon")
-        - Actors (e.g., "Robert Downey Jr., Chris Evans, Scarlett Johansson")
-        - BoxOffice (e.g., "$623,357,910")
-        - Production (e.g., "N/A")
-        - Website (e.g., "N/A")
-        - Response (e.g., "True")
-        """
+        # Example of a row:
+        # {
+        #     "Title": "The Avengers",
+        #     "Year": "2012",
+        #     "Rated": "PG-13",
+        #     "Released": "04 May 2012",
+        #     "Runtime": "143 min",
+        #     "Genre": "Action, Sci-Fi",
+        #     "Director": "Joss Whedon",
+        #     "Writer": "Joss Whedon, Zak Penn",
+        #     "Actors": "Robert Downey Jr., Chris Evans, Scarlett Johansson",
+        #     "Plot": "Earth's mightiest heroes must come together and learn to fight as a team if they are going to stop the mischievous Loki and his alien army from enslaving humanity.",
+        #     "Language": "English, Russian",
+        #     "Country": "United States",
+        #     "Awards": "Nominated for 1 Oscar. 39 wins & 81 nominations total",
+        #     "Poster": "https://m.media-amazon.com/images/M/MV5BNGE0YTVjNzUtNzJjOS00NGNlLTgxMzctZTY4YTE1Y2Y1ZTU4XkEyXkFqcGc@._V1_SX300.jpg",
+        #     "Ratings": [
+        #         {"Source": "Internet Movie Database", "Value": "8.0/10"},
+        #         {"Source": "Rotten Tomatoes", "Value": "91%"},
+        #         {"Source": "Metacritic", "Value": "69/100"}
+        #     ],
+        #     "Metascore": "69",
+        #     "imdbRating": "8.0",
+        #     "imdbVotes": "1,511,483",
+        #     "imdbID": "tt0848228",
+        #     "Type": "movie",
+        #     "DVD": "N/A",
+        #     "BoxOffice": "$623,357,910",
+        #     "Production": "N/A",
+        #     "Website": "N/A",
+        #     "Response": "True"
+        # }
+
         # Only check OMDb for valid movies
         if is_non_adult and is_target_language and is_long_enough:
             if DEBUG:
@@ -178,6 +188,7 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
                     row['omdb_imdb_rating'] = omdb_json.get('imdbRating')
                     row['omdb_imdb_votes'] = omdb_json.get('imdbVotes')
                     row['omdb_box_office'] = omdb_json.get('BoxOffice')
+                    row['omdb_poster'] = omdb_json.get('Poster')
         # Track min/max popularity
         if is_non_adult and is_target_language and is_long_enough:
             if popularity < min_popularity:
@@ -214,6 +225,7 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
                     'omdb_imdb_votes': row.get('omdb_imdb_votes'),
                     'omdb_box_office': row.get('omdb_box_office'),
                     'production_companies': row.get('production_companies', ''),
+                    'omdb_poster': row.get('omdb_poster'),
                 }
                 index[this_day].append(movie)
                 added_count += 1
