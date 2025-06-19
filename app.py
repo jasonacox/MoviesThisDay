@@ -30,7 +30,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 import json
 
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
@@ -541,3 +541,18 @@ async def submit_correction(imdb_id: str = Form(...), correction: str = Form(...
         return PlainTextResponse("Oops! Something went wrong.", status_code=500)
     time.sleep(1.0)  # Add a 1 second delay to mitigate rapid repeated requests
     return "Correction received. Thank you!"
+
+@app.get("/movie/{imdb_id}")
+async def movie_json(imdb_id: str):
+    """
+    Return all available details for a movie by IMDb ID as a JSON payload.
+    Args:
+        imdb_id (str): IMDb ID of the movie.
+    Returns:
+        JSONResponse: All movie details if found, else 404 error.
+    """
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            if m.get('imdb_id') == imdb_id:
+                return JSONResponse(content=m)
+    return JSONResponse(content={"error": "Movie not found"}, status_code=404)

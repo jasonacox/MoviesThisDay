@@ -99,6 +99,65 @@
             color: #fff;
             font-weight: 500;
         }
+        .movie-hover-card {
+            display: none;
+            position: absolute;
+            z-index: 2000;
+            min-width: 320px;
+            max-width: 340px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(30,41,59,0.18);
+            padding: 18px 18px 14px 18px;
+            font-size: 1rem;
+            color: #22223b;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        .movie-hover-card .hover-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+        .movie-hover-card .hover-studio {
+            color: #2563eb;
+            font-size: 0.98rem;
+            margin-bottom: 0.2rem;
+        }
+        .movie-hover-card .hover-desc {
+            font-size: 0.98rem;
+            color: #444;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+        }
+        .movie-hover-card .hover-poster {
+            float: right;
+            width: 80px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 7px;
+            margin-left: 12px;
+            box-shadow: 0 2px 8px rgba(30,41,59,0.10);
+        }
+        .movie-hover-card .imdb-bar {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 4px;
+            margin-bottom: 2px;
+        }
+        .movie-hover-card .imdb-bar span {
+            width: 13px;
+            height: 13px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+        .movie-hover-card .imdb-label {
+            font-size: 0.97em;
+            color: #f5c518;
+            font-weight: 600;
+            margin-right: 6px;
+        }
     </style>
     <script>
         let lastClientDate = getLocalDateString();
@@ -218,6 +277,82 @@
                 lastClientDate = currentClientDate;
             }, 60000); // check every 60 seconds
         });
+        function createMovieHoverCard(movie, anchor) {
+            // Remove any existing card
+            let oldCard = document.getElementById('movie-hover-card');
+            if (oldCard) oldCard.remove();
+            // Build card
+            let card = document.createElement('div');
+            card.className = 'movie-hover-card';
+            card.id = 'movie-hover-card';
+            // Poster
+            let poster = movie.omdb_poster ? `<img class='hover-poster' src='${movie.omdb_poster}' alt='Poster'>` : '';
+            // Title
+            let title = `<div class='hover-title'>${movie.title || ''}</div>`;
+            // Studio
+            let studio = movie.production_companies ? `<div class='hover-studio'>${movie.production_companies}</div>` : '';
+            // Description
+            let desc = movie.omdb_plot ? `<div class='hover-desc'>${movie.omdb_plot}</div>` : '';
+            // IMDB rating bar
+            let imdbBar = '';
+            if (movie.omdb_imdb_rating) {
+                let rating = movie.omdb_imdb_rating.split('/')[0];
+                let ratingVal = parseFloat(rating);
+                imdbBar = `<div class='imdb-label'>IMDB</div><div class='imdb-bar'>`;
+                for (let i = 1; i <= 10; i++) {
+                    imdbBar += `<span style='background-color:${i <= Math.floor(ratingVal) ? '#f5c518' : '#e5e7eb'};'></span>`;
+                }
+                imdbBar += `<span style='font-size:0.97em; color:#444; margin-left:6px;'>${ratingVal}/10</span></div>`;
+            }
+            card.innerHTML = `${poster}${title}${studio}${desc}${imdbBar}`;
+            document.body.appendChild(card);
+            // Position card
+            const rect = anchor.getBoundingClientRect();
+            let top = rect.bottom + window.scrollY + 6;
+            let left = rect.left + window.scrollX;
+            // Check if popup would be below the fold
+            card.style.display = 'block'; // Temporarily show to get height
+            let cardHeight = card.offsetHeight;
+            let willOverflowBottom = (top + cardHeight > window.scrollY + window.innerHeight);
+            if (willOverflowBottom) {
+                // Show above the link
+                top = rect.top + window.scrollY - cardHeight - 6;
+                if (top < window.scrollY) top = window.scrollY + 8; // Clamp to top
+            }
+            if (left + card.offsetWidth > window.innerWidth - 20) {
+                left = window.innerWidth - card.offsetWidth - 20;
+            }
+            card.style.top = `${top}px`;
+            card.style.left = `${left}px`;
+            card.style.opacity = 1;
+        }
+        function removeMovieHoverCard() {
+            let card = document.getElementById('movie-hover-card');
+            if (card) card.remove();
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.movie-title-link').forEach(function(link) {
+                let timeout;
+                link.addEventListener('mouseenter', function(e) {
+                    timeout = setTimeout(() => {
+                        fetch(`/movie/${link.dataset.imdbId}`)
+                            .then(r => r.ok ? r.json() : null)
+                            .then(movie => { if (movie && !movie.error) createMovieHoverCard(movie, link); });
+                    }, 200);
+                });
+                link.addEventListener('mouseleave', function(e) {
+                    clearTimeout(timeout);
+                    removeMovieHoverCard();
+                });
+            });
+            // Remove card if mouse leaves card
+            document.body.addEventListener('mousemove', function(e) {
+                let card = document.getElementById('movie-hover-card');
+                if (card && !card.contains(e.target) && !e.target.classList.contains('movie-title-link')) {
+                    card.remove();
+                }
+            });
+        });
     </script>
 </head>
 <body>
@@ -290,7 +425,7 @@
                             <tr>
                                 <td class="text-truncate" style="max-width:180px; word-break:break-word; white-space:nowrap;" title="{{ movie.title }}">
                                     {% if movie.imdb_id %}
-                                        <a href="/details/{{ movie.imdb_id }}" style="color:#111; text-decoration:none; font-weight:inherit;">{{ movie.title }}</a>
+                                        <a href="/details/{{ movie.imdb_id }}" class="movie-title-link" data-imdb-id="{{ movie.imdb_id }}" style="color:#111; text-decoration:none; font-weight:inherit;">{{ movie.title }}</a>
                                     {% else %}
                                         {{ movie.title }}
                                     {% endif %}
@@ -307,17 +442,18 @@
                                     </div>
                                 </td>
                                 <td>
-                                    {% if movie.imdb_id %}
-                                        <a href="https://www.imdb.com/title/{{ movie.imdb_id }}" target="_blank">IMDB</a>
+                                    {% if movie.omdb_imdb_rating %}
+                                        {% set rating = movie.omdb_imdb_rating.split('/')[0] %}
+                                        {% set ratingVal = rating|float(0) %}
+                                        <div class="imdb-rating" style="display:flex; align-items:center;">
+                                            <div style="position:relative; width:70px; height:10px; background:#e0e7ef; border-radius:5px; overflow:hidden;">
+                                                <div style="position:absolute; top:0; left:0; height:100%; border-radius:5px; background:linear-gradient(90deg,#2563eb,#60a5fa); width:{{ (ratingVal / 10) * 100 }}%;"></div>
+                                            </div>
+                                            <span style="font-size:0.9em; color:#222; margin-left:8px;">{{ ratingVal|round(1) }}/10</span>
+                                        </div>
                                     {% else %}
                                         -
                                     {% endif %}
-                                </td>
-                            </tr>
-                        {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-4" style="font-weight:500; color:#666;">
-                                    No movies found for this date.
                                 </td>
                             </tr>
                         {% endfor %}
