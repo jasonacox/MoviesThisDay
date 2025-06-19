@@ -397,7 +397,7 @@
                 </div>
                 <div class="date-nav mt-4" style="width:100%; max-width:240px;">
                     <label for="dateInput" class="form-label">Jump to Date</label>
-                    <input type="date" id="dateInput" class="form-control mb-2" max="{{ max_date }}">
+                    <input type="date" id="dateInput" class="form-control mb-2" onchange="goToDate()">
                     <div class="d-flex gap-2 mb-2">
                         <button class="btn btn-outline-secondary flex-fill w-50" type="button" onclick="changeDay(-1)">&lt; Day</button>
                         <button class="btn btn-outline-secondary flex-fill w-50" type="button" onclick="changeDay(1)">Day &gt;</button>

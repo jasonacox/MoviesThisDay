@@ -8,6 +8,7 @@
 - Improved documentation and docstrings across all scripts and endpoints.
 - Updated README to document new routes, correction workflow, and Docker usage.
 - General UI/UX improvements and code cleanup.
+- Date picker now auto-navigates when a date is picked from the calendar.
 
 ## v0.1.4 (2025-06-18)
 - Added `/details/{imdb_id}` route and details page: full movie info, poster, ratings, and correction form.

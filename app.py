@@ -37,16 +37,6 @@ AGE_LIMIT = 100  # Only show movies released within this many years
 
 app = FastAPI()
 
-# Log header with version information at startup
-print(f"""
-=====================================================
-  MoviesThisDay v{VERSION}
-  Author: Jason A. Cox
-  Project: https://github.com/jasonacox/MoviesToday
-  Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-=====================================================
-""")
-
 # Set up Jinja2 templates
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
@@ -74,6 +64,25 @@ with open(PKL_PATH, 'rb') as pklfile:
     db = pickle.load(pklfile)
     movies_by_day_metadata = db.get('metadata', {})
     movies_by_day_index = db.get('index', {})
+
+# Build a global imdb_id → movie dictionary for O(1) lookup
+imdb_id_to_movie = {}
+for movies in movies_by_day_index.values():
+    for m in movies:
+        imdb_id = m.get('imdb_id')
+        if imdb_id:
+            imdb_id_to_movie[imdb_id] = m
+
+# Log header with version information and movie count at startup
+print(f"""
+=====================================================
+  MoviesThisDay v{VERSION}
+  Author: Jason A. Cox
+  Project: https://github.com/jasonacox/MoviesToday
+  Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+  Loaded {len(imdb_id_to_movie):,} movies into the database.
+=====================================================
+""")
 
 # Load environment variables
 CORRECTIONS_FILE = os.environ.get('CORRECTIONS_FILE', os.path.join(os.path.dirname(__file__), 'corrections.jsonl'))
@@ -309,10 +318,9 @@ async def movie_by_imdb(imdb_id: str):
     Returns:
         JSONResponse: Movie dict if found, else error message.
     """
-    for movies in movies_by_day_index.values():
-        for m in movies:
-            if m.get('imdb_id') == imdb_id:
-                return JSONResponse(content=m)
+    movie = imdb_id_to_movie.get(imdb_id)
+    if movie:
+        return JSONResponse(content=movie)
     return JSONResponse(content={"error": "Movie not found"}, status_code=404)
 
 @app.get("/movies/by-title")
@@ -467,7 +475,8 @@ async def about(request: Request):
     return templates.TemplateResponse(request, "about.html", {
         "request": request,
         "current_year": datetime.now().year,
-        "version": VERSION
+        "version": VERSION,
+        "movie_count": len(imdb_id_to_movie)
     })
 
 @app.get("/version")
@@ -489,14 +498,7 @@ async def details_movie(request: Request, imdb_id: str):
     Returns:
         HTMLResponse: Rendered movie details page or 404 if not found.
     """
-    movie = None
-    for movies in movies_by_day_index.values():
-        for m in movies:
-            if m.get('imdb_id') == imdb_id:
-                movie = m
-                break
-        if movie:
-            break
+    movie = imdb_id_to_movie.get(imdb_id)
     if not movie:
         return HTMLResponse(content="<h2>Movie not found</h2>", status_code=404)
     return templates.TemplateResponse(request, "details.html", {
@@ -551,8 +553,7 @@ async def movie_json(imdb_id: str):
     Returns:
         JSONResponse: All movie details if found, else 404 error.
     """
-    for movies in movies_by_day_index.values():
-        for m in movies:
-            if m.get('imdb_id') == imdb_id:
-                return JSONResponse(content=m)
+    movie = imdb_id_to_movie.get(imdb_id)
+    if movie:
+        return JSONResponse(content=movie)
     return JSONResponse(content={"error": "Movie not found"}, status_code=404)
