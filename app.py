@@ -22,12 +22,14 @@ import re
 import urllib.request
 import zipfile
 from datetime import datetime
+import time
 
-from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Query, Request, Form
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
+import json
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
@@ -71,6 +73,18 @@ with open(PKL_PATH, 'rb') as pklfile:
     db = pickle.load(pklfile)
     movies_by_day_metadata = db.get('metadata', {})
     movies_by_day_index = db.get('index', {})
+
+# Load environment variables
+CORRECTIONS_FILE = os.environ.get('CORRECTIONS_FILE', os.path.join(os.path.dirname(__file__), 'corrections.jsonl'))
+
+# Check if corrections file is writable at startup
+try:
+    with open(CORRECTIONS_FILE, 'a', encoding='utf-8') as f:
+        pass
+    CORRECTIONS_WRITABLE = True
+except Exception as e:
+    print(f"[ERROR] Corrections file '{CORRECTIONS_FILE}' is not writable: {e}")
+    CORRECTIONS_WRITABLE = False
 
 def filter_movies(movies, current_year, today_date):
     """
@@ -463,3 +477,66 @@ async def version():
         dict: Version string.
     """
     return {"version": VERSION}
+
+@app.get("/details/{imdb_id}", response_class=HTMLResponse)
+async def details_movie(request: Request, imdb_id: str):
+    """
+    Render a web page displaying all details for the specified IMDb ID.
+    Args:
+        request (Request): FastAPI request object.
+        imdb_id (str): IMDb ID of the movie.
+    Returns:
+        HTMLResponse: Rendered movie details page or 404 if not found.
+    """
+    movie = None
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            if m.get('imdb_id') == imdb_id:
+                movie = m
+                break
+        if movie:
+            break
+    if not movie:
+        return HTMLResponse(content="<h2>Movie not found</h2>", status_code=404)
+    return templates.TemplateResponse("details.html", {
+        "request": request,
+        "movie": movie,
+        "version": VERSION
+    })
+
+@app.post("/corrections", response_class=PlainTextResponse)
+async def submit_correction(imdb_id: str = Form(...), correction: str = Form(...), user_agent: str = Form(None), movie_title: str = Form(None)):
+    """
+    Accept a correction for a movie and append it to corrections.jsonl (or configured file).
+    Returns Oops if file is not writable.
+    """
+    if not CORRECTIONS_WRITABLE:
+        time.sleep(1.0)
+        return PlainTextResponse("Oops! Something went wrong.", status_code=500)
+    # Limit correction payload size to prevent abuse
+    MAX_CORRECTION_LEN = 1000
+    MAX_TITLE_LEN = 300
+    MAX_IMDB_ID_LEN = 20
+    if (
+        len(correction) > MAX_CORRECTION_LEN or
+        (movie_title and len(movie_title) > MAX_TITLE_LEN) or
+        (imdb_id and len(imdb_id) > MAX_IMDB_ID_LEN)
+    ):
+        time.sleep(1.0)
+        return PlainTextResponse("Oops! Something went wrong.", status_code=413)
+    entry = {
+        "imdb_id": imdb_id,
+        "movie_title": movie_title or "",
+        "correction": correction,
+        "timestamp": datetime.now().isoformat(),
+        "user_agent": user_agent or ""
+    }
+    try:
+        with open(CORRECTIONS_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception as e:
+        print(f"[ERROR] Could not write to corrections file: {e}")
+        time.sleep(1.0)
+        return PlainTextResponse("Oops! Something went wrong.", status_code=500)
+    time.sleep(1.0)  # Add a 1 second delay to mitigate rapid repeated requests
+    return "Correction received. Thank you!"
