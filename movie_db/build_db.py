@@ -170,8 +170,14 @@ else:
 # Concatenate TMDB_CSV and TMDB_TRENDING_CSV to temporary file
 COMBINED_TMDB_CSV = 'combined_tmdb.csv'
 print(f"Combining {TMDB_CSV} and {TMDB_TRENDING_CSV} into {COMBINED_TMDB_CSV}...")
-command = f"cat {TMDB_CSV} {TMDB_TRENDING_CSV} > {COMBINED_TMDB_CSV}"
-os.system(command)
+with open(COMBINED_TMDB_CSV, 'w', encoding='utf-8') as combined_file:
+    # Write contents of the first file
+    with open(TMDB_CSV, 'r', encoding='utf-8') as file1:
+        combined_file.write(file1.read())
+    # Write contents of the second file, skipping the header
+    with open(TMDB_TRENDING_CSV, 'r', encoding='utf-8') as file2:
+        lines = file2.readlines()
+        combined_file.writelines(lines[1:])  # Skip header row
 
 print(f"Reading {COMBINED_TMDB_CSV}...")
 # Count total rows for progress bar
