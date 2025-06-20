@@ -161,7 +161,7 @@ else:
     # save it
     with open(TMDB_TRENDING_CSV, 'w', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=trending_output.keys(), quoting=csv.QUOTE_ALL)
-        # writer.writeheader()
+        writer.writeheader()
         for movie in trending_movies:
             writer.writerow(movie)
     print(f"TMDB new movies saved to {TMDB_TRENDING_CSV}.")
