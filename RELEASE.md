@@ -1,5 +1,12 @@
 # MoviesThisDay Release Notes
 
+## v0.1.7 (2025-06-20)
+- Trending/new release movies are now always included in the main index table, regardless of release date.
+- Added server-side detection of "New Release" (released within last 3 months) for all movies; badge appears in both the main table and hover card.
+- Removed all client-side JavaScript for new release detection; logic is now robust and timezone-consistent.
+- Improved maintainability by centralizing new release logic in the backend.
+- Minor UI/UX improvements and bugfixes.
+
 ## v0.1.6 (2025-06-19)
 - Date picker calendar now allows selecting any date, including future dates (no max restriction).
 - Date input: If a date is picked from the calendar, navigation is automatic; if manually edited, user must press Go or Enter.

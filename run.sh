@@ -19,8 +19,6 @@ docker run -d \
   --health-timeout=10s \
   --health-retries=3 \
   -e TZ=America/Los_Angeles \
-  -e CORRECTIONS_FILE=/data/corrections.jsonl \
-  -v $(pwd)/data:/data \
   --log-opt max-size=10m \
   --log-opt max-file=3 \
   jasonacox/moviesthisday:latest

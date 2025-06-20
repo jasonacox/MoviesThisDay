@@ -2,6 +2,11 @@
 
 This folder contains scripts to build an optimized movie database organized by release date (MM-DD).
 
+## Trending & New Release Movies
+
+- The database build process now ensures that trending and newly released movies (from TMDB trending API) are always included in the main index, regardless of release date.
+- All correction and update logic (from `updates.jsonl`) is applied before export, so new/corrected movies are always visible after a rebuild.
+
 ## Create
 
 1. To create this database, you must first download the [TMDB](https://developer.themoviedb.org/docs/getting-started) raw database from https://www.kaggle.com/datasets/asaniczka/tmdb-movies-dataset-2023-930k-movies?resource=download
