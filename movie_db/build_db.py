@@ -83,7 +83,6 @@ TMDB_GENRE_ID_TO_NAME = {
 if not TMDB_API_KEY:
     print("[WARNING] No TMDB API key found. Skipping TMDB trending movies fetch.")
 else:
-    trending_output = {}
     trending_movies = []
     tmdb_trend = f'https://api.themoviedb.org/3/trending/movie/day'
     tmdb_current_year = f'https://api.themoviedb.org/3/discover/movie?language=en-US&sort_by=popularity.desc&include_adult=false&include_video=false&page=1&primary_release_year={datetime.now().year}'
@@ -102,6 +101,7 @@ else:
                 # "id","title","vote_average","vote_count","status","release_date","revenue","runtime","adult","backdrop_path","budget","homepage","imdb_id","original_language","original_title","overview","popularity","poster_path","tagline","genres","production_companies","production_countries","spoken_languages","keywords"
                 # Save trending movies to CSV in the same format as TMDB_CSV
                 for movie in trending_data['results']:
+                    trending_output = {}
                     # look up imdb for movie
                     id_movie = movie.get('id')
                     url = f"https://api.themoviedb.org/3/movie/{id_movie}?language=en-US"
