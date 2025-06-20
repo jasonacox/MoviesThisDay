@@ -98,8 +98,6 @@ docker run -d \
   -p 8000:8000 \
   --restart unless-stopped \
   -e TZ=America/Los_Angeles \
-  -e CORRECTIONS_FILE=/data/corrections.jsonl \
-  -v $(PWD)/data:/data \
   jasonacox/moviesthisday:latest
 ```
 

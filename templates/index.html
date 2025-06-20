@@ -304,7 +304,11 @@
             // Poster
             let poster = movie.omdb_poster ? `<img class='hover-poster' src='${movie.omdb_poster}' alt='Poster'>` : '';
             // Title
-            let title = `<div class='hover-title'>${movie.title || ''}</div>`;
+            let title = `<div class='hover-title'>${movie.title || ''}`;
+            if (movie.is_new_release) {
+                title += ` <span class='badge bg-success ms-2' style='font-size:0.85em;'>New Release</span>`;
+            }
+            title += `</div>`;
             // Studio
             let studio = movie.production_companies ? `<div class='hover-studio'>${movie.production_companies}</div>` : '';
             // Description
@@ -314,7 +318,10 @@
             if (movie.omdb_imdb_rating) {
                 let rating = movie.omdb_imdb_rating.split('/')[0];
                 let ratingVal = parseFloat(rating);
-                imdbBar = `<div class='imdb-label'>IMDB</div><div class='imdb-bar'>`;
+                if (isNaN(ratingVal) || ratingVal < 0 || ratingVal > 10) {
+                    ratingVal = 0; // Fallback to 0 if invalid
+                }
+                imdbBar = `<div class='imdb-label'>IMDb Rating</div><div class='imdb-bar'>`;
                 for (let i = 1; i <= 10; i++) {
                     imdbBar += `<span style='background-color:${i <= Math.floor(ratingVal) ? '#f5c518' : '#e5e7eb'};'></span>`;
                 }
@@ -432,7 +439,7 @@
                                 <th style="width:70px;">Year</th>
                                 <th style="width:80px;">Runtime</th>
                                 <th style="width:120px;">Popularity</th>
-                                <th style="width:70px;">IMDB</th>
+                                <th style="width:70px;">Link</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -443,6 +450,9 @@
                                         <a href="/details/{{ movie.imdb_id }}" class="movie-title-link" data-imdb-id="{{ movie.imdb_id }}" style="color:#111; text-decoration:none; font-weight:inherit;">{{ movie.title }}</a>
                                     {% else %}
                                         {{ movie.title }}
+                                    {% endif %}
+                                    {% if movie.is_new_release %}
+                                        <span class="badge bg-success ms-2" style="font-size:0.85em;">New Release</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ movie.release_year }}</td>
@@ -457,15 +467,8 @@
                                     </div>
                                 </td>
                                 <td>
-                                    {% if movie.omdb_imdb_rating %}
-                                        {% set rating = movie.omdb_imdb_rating.split('/')[0] %}
-                                        {% set ratingVal = rating|float(0) %}
-                                        <div class="imdb-rating" style="display:flex; align-items:center;">
-                                            <div style="position:relative; width:70px; height:10px; background:#e0e7ef; border-radius:5px; overflow:hidden;">
-                                                <div style="position:absolute; top:0; left:0; height:100%; border-radius:5px; background:linear-gradient(90deg,#2563eb,#60a5fa); width:{{ (ratingVal / 10) * 100 }}%;"></div>
-                                            </div>
-                                            <span style="font-size:0.9em; color:#222; margin-left:8px;">{{ ratingVal|round(1) }}/10</span>
-                                        </div>
+                                    {% if movie.imdb_id %}
+                                        <a href="https://www.imdb.com/title/{{ movie.imdb_id }}" target="_blank" rel="noopener" style="color:#888; font-weight:600; text-decoration:none;">IMDb</a>
                                     {% else %}
                                         -
                                     {% endif %}

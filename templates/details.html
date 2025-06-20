@@ -79,11 +79,10 @@
 
           {% if movie.release_date %}{{ movie.release_date }}{% endif %}
         </span></div>
-        <div class="movie-section"><span class="movie-label">Runtime:</span> <span class="movie-value">{% if movie.runtime %}{{ movie.runtime }} min{% else %}-{% endif %}</span></div>
-        <div class="movie-section"><span class="movie-label">Popularity:</span> <span class="movie-value">{{ movie.popularity }} </span></div>
         <div class="movie-section"><span class="movie-label">Genres:</span> <span class="movie-value">{{ movie.omdb_genre or '-' }}</span></div>
         <div class="movie-section"><span class="movie-label">Studio:</span> <span class="movie-value">{{ movie.production_companies or '-' }}</span></div>
-        <div class="movie-section"><span class="movie-label">IMDB ID:</span>
+        <div class="movie-section"><span class="movie-label">Popularity:</span> <span class="movie-value">{{ movie.popularity }} {% if movie.popularity_rank %}(Rank #{{ movie.popularity_rank }}){% endif %}</span></div>
+        <div class="movie-section"><span class="movie-label">IMDb ID:</span>
           <span class="movie-value">
             {% if movie.imdb_id %}
               <a class="imdb-link" href="https://www.imdb.com/title/{{ movie.imdb_id }}" target="_blank">{{ movie.imdb_id }}</a>
@@ -104,30 +103,22 @@
           {% endif %}
           | Score {{ movie.vote_average or '-' }} | Count: {{ movie.vote_count or '-' }}
         </span></div>
-        <div class="movie-section"><span class="movie-label">Language:</span> <span class="movie-value">{{ movie.language or '-' }} | Original {{ movie.original_language or '-' }}</span></div>
-        <div class="movie-section"><span class="movie-label">Box Office:</span> <span class="movie-value">{{ movie.omdb_box_office or '-' }}</span></div>
         <div class="mt-4" style="max-width:500px; margin:auto;">
-          <form id="correctionForm" onsubmit="submitCorrection(); return false;">
-            <input type="hidden" id="correctionImdbId" value="{{ movie.imdb_id }}">
-            <input type="hidden" id="correctionMovieTitle" value="{{ movie.title }}">
-            <label for="correctionInput" class="form-label" style="color:#2563eb; font-weight:500;">See an error? Suggest a correction:</label>
-            <div class="input-group mb-2">
-              <input type="text" id="correctionInput" class="form-control" placeholder="Describe the correction (e.g. release date)" required>
-              <button class="btn btn-outline-primary" type="submit">Submit</button>
-            </div>
-            <div id="correctionMsg" style="font-size:0.95em; color:#198754;"></div>
-          </form>
+          <div class="alert alert-info" style="font-size:1.05em; background:#f3f4f6; color:#222; border:1px solid #e5e7eb;">
+            <strong>See an error?</strong><br>
+            Please <a href="https://github.com/jasonacox/MoviesThisDay/issues" target="_blank">open an issue</a> or suggest a correction by editing <a href="https://github.com/jasonacox/MoviesThisDay/blob/main/movie_db/updates.jsonl" target="_blank">updates.jsonl</a> on GitHub.
+          </div>
         </div>
         <div class="mt-4">
           <a href="javascript:history.back()" class="back-link">&larr; Back</a>
         </div>
-      </div>
+      </div> <!-- end flex-grow-1 -->
       {% if movie.omdb_poster %}
       <div class="ms-4 d-none d-md-block" style="min-width:120px; max-width:180px; align-self:flex-start; margin-top:40px;">
         <img src="{{ movie.omdb_poster }}" alt="Poster" style="width:100%; max-width:180px; border-radius:8px; box-shadow:0 2px 12px rgba(30,41,59,0.10);">
         {% if movie.omdb_imdb_rating %}
         <div style="margin-top:18px; text-align:center;">
-          <div style="font-size:1.05em; color:#22223b; font-weight:600;">IMDB Rating</div>
+          <div style="font-size:1.05em; color:#22223b; font-weight:600;">IMDb Rating</div>
           <div style="display:flex; align-items:center; justify-content:center; gap:2px; margin-top:4px;">
             {% set rating = movie.omdb_imdb_rating.split('/')[0] if '/' in movie.omdb_imdb_rating else movie.omdb_imdb_rating %}
             {% set rating_val = rating|float %}
@@ -158,6 +149,12 @@
           <div style="font-size:0.98em; color:#444; margin-top:2px;">{{ tmdb_score }}/10</div>
         </div>
         {% endif %}
+        <div style="margin-top:18px; text-align:center; font-size:1em; color:#222;">
+          <div style="font-size:1.05em; color:#22223b; font-weight:600;">Length</div>
+          <div><span style="font-weight:600; color:#2563eb;"></span> {% if movie.runtime %}{{ movie.runtime }} min{% else %}-{% endif %}</div><br>
+          <div style="font-size:1.05em; color:#22223b; font-weight:600;">Box Office</div>
+          <div><span style="font-weight:600; color:#2563eb;"></span> {{ movie.omdb_box_office or '-' }}</div>
+        </div>
       </div>
       {% endif %}
     </div>
@@ -165,52 +162,5 @@
   <div class="footer text-center" style="font-size:0.95rem;">
     Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
   </div>
-  <script>
-    function submitCorrection() {
-      const input = document.getElementById('correctionInput');
-      const imdbId = document.getElementById('correctionImdbId').value;
-      const movieTitle = document.getElementById('correctionMovieTitle').value;
-      const msg = document.getElementById('correctionMsg');
-      const value = input.value.trim();
-      const submitBtn = document.querySelector('#correctionForm button[type="submit"]');
-      if (!value) return;
-      const formData = new FormData();
-      formData.append('imdb_id', imdbId);
-      formData.append('movie_title', movieTitle);
-      formData.append('correction', value);
-      formData.append('user_agent', navigator.userAgent);
-      // Disable submit button and turn it gray
-      submitBtn.disabled = true;
-      submitBtn.classList.add('btn-secondary');
-      submitBtn.classList.remove('btn-outline-primary');
-      fetch('/corrections', {
-        method: 'POST',
-        body: formData
-      })
-      .then(r => r.text())
-      .then(text => {
-        msg.textContent = text;
-        if (text.startsWith('Oops')) {
-          msg.style.color = '#dc3545';
-          msg.style.fontWeight = 'bold';
-        } else {
-          msg.style.color = '#198754';
-          msg.style.fontWeight = 'normal';
-        }
-        input.value = '';
-        setTimeout(() => { msg.textContent = ''; }, 4000);
-      })
-      .catch(() => {
-        msg.textContent = 'Error submitting correction.';
-        msg.style.color = '#dc3545';
-      })
-      .finally(() => {
-        // Re-enable submit button and restore style
-        submitBtn.disabled = false;
-        submitBtn.classList.remove('btn-secondary');
-        submitBtn.classList.add('btn-outline-primary');
-      });
-    }
-  </script>
 </body>
 </html>

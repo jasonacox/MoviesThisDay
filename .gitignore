@@ -204,3 +204,6 @@ movie_db/movies_by_day.orig.pkl
 upload.sh
 .DS_Store
 corrections.jsonl
+sandbox
+movie_db/combined_tmdb.csv
+movie_db/TMDB_trending_movies.csv
