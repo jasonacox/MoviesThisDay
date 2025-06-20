@@ -24,11 +24,11 @@ import zipfile
 from datetime import datetime
 import time
 import asyncio
+import json
 
-from fastapi import FastAPI, HTTPException, Query, Request, Form
+from fastapi import FastAPI, HTTPException, Query, Request, Form, Body, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
-import json
 
 VERSION = "0.1.6"
 
@@ -65,22 +65,15 @@ with open(PKL_PATH, 'rb') as pklfile:
     movies_by_day_metadata = db.get('metadata', {})
     movies_by_day_index = db.get('index', {})
 
-# Build a global imdb_id → movie dictionary for O(1) lookup
-imdb_id_to_movie = {}
-for movies in movies_by_day_index.values():
-    for m in movies:
-        imdb_id = m.get('imdb_id')
-        if imdb_id:
-            imdb_id_to_movie[imdb_id] = m
-
 # Log header with version information and movie count at startup
+movie_count = sum(len(movies) for movies in movies_by_day_index.values())
 print(f"""
 =====================================================
   MoviesThisDay v{VERSION}
   Author: Jason A. Cox
   Project: https://github.com/jasonacox/MoviesToday
   Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-  Loaded {len(imdb_id_to_movie):,} movies into the database.
+  Loaded {movie_count:,} movies into the database.
 =====================================================
 """)
 
@@ -98,14 +91,13 @@ except Exception as e:
 
 def filter_movies(movies, current_year, today_date):
     """
-    Filter a list of movies by popularity, age, and release date.
+    Filter a list of movies by popularity and age.
     - Only includes movies with popularity above POPULARITY_THRESHOLD.
     - Only includes movies released within AGE_LIMIT years of the current year.
-    - Excludes movies with a release date in the future.
     Args:
         movies (list): List of movie dicts.
         current_year (int): The year to use for age filtering.
-        today_date (date): The current date for future filtering.
+        today_date (date): (Unused, kept for compatibility)
     Returns:
         list: Filtered list of movies.
     """
@@ -113,8 +105,20 @@ def filter_movies(movies, current_year, today_date):
         m for m in movies
         if float(m.get('popularity', 0)) > POPULARITY_THRESHOLD
         and (m.get('release_year') and (current_year - int(m['release_year'])) <= AGE_LIMIT)
-        and (not m.get('release_date') or datetime.strptime(m['release_date'], '%Y-%m-%d').date() <= today_date)
     ]
+
+def is_new_release(movie, today=None):
+    if not today:
+        today = datetime.now().date()
+    release_date = movie.get('release_date')
+    if not release_date:
+        return False
+    try:
+        release_dt = datetime.strptime(release_date, '%Y-%m-%d').date()
+        days_diff = (today - release_dt).days
+        return days_diff <= 92
+    except Exception:
+        return False
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, date: str = Query(None, description="Date in MM-DD format"), sort: str = Query('popularity', description="Sort by field"), client_date: str = Query(None, description="Client's local date in YYYY-MM-DD format", alias="client_date")):
@@ -152,6 +156,9 @@ async def index(request: Request, date: str = Query(None, description="Date in M
     current_year = client_dt.year
     today_date = client_dt.date()
     movies = filter_movies(movies_by_day_index.get(mm_dd, []), current_year, today_date)
+    # Annotate movies with is_new_release
+    for m in movies:
+        m['is_new_release'] = is_new_release(m, today_date)
     # Sorting logic
     if sort == 'name':
         movies.sort(key=lambda m: m.get('title', '').lower())
@@ -170,7 +177,8 @@ async def index(request: Request, date: str = Query(None, description="Date in M
         "current_date_str": current_date_str,
         "version": VERSION,
         "client_date": client_dt.strftime('%Y-%m-%d'),
-        "display_date": display_date
+        "display_date": display_date,
+        "current_date": client_dt.strftime('%Y-%m-%d'),
     })
 
 @app.get("/movies/today")
@@ -318,9 +326,10 @@ async def movie_by_imdb(imdb_id: str):
     Returns:
         JSONResponse: Movie dict if found, else error message.
     """
-    movie = imdb_id_to_movie.get(imdb_id)
-    if movie:
-        return JSONResponse(content=movie)
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            if m.get('imdb_id') == imdb_id:
+                return JSONResponse(content=m)
     return JSONResponse(content={"error": "Movie not found"}, status_code=404)
 
 @app.get("/movies/by-title")
@@ -472,11 +481,12 @@ async def about(request: Request):
     Returns:
         HTMLResponse: Rendered about.html template.
     """
+    movie_count = sum(len(movies) for movies in movies_by_day_index.values())
     return templates.TemplateResponse(request, "about.html", {
         "request": request,
         "current_year": datetime.now().year,
         "version": VERSION,
-        "movie_count": len(imdb_id_to_movie)
+        "movie_count": movie_count
     })
 
 @app.get("/version")
@@ -498,7 +508,14 @@ async def details_movie(request: Request, imdb_id: str):
     Returns:
         HTMLResponse: Rendered movie details page or 404 if not found.
     """
-    movie = imdb_id_to_movie.get(imdb_id)
+    movie = None
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            if m.get('imdb_id') == imdb_id:
+                movie = m
+                break
+        if movie:
+            break
     if not movie:
         return HTMLResponse(content="<h2>Movie not found</h2>", status_code=404)
     return templates.TemplateResponse(request, "details.html", {
@@ -553,7 +570,8 @@ async def movie_json(imdb_id: str):
     Returns:
         JSONResponse: All movie details if found, else 404 error.
     """
-    movie = imdb_id_to_movie.get(imdb_id)
-    if movie:
-        return JSONResponse(content=movie)
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            if m.get('imdb_id') == imdb_id:
+                return JSONResponse(content=m)
     return JSONResponse(content={"error": "Movie not found"}, status_code=404)

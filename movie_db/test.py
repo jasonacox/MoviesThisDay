@@ -1,4 +1,3 @@
-# ...existing code...
 import argparse
 import pickle
 from datetime import datetime
@@ -29,12 +28,15 @@ movies_today = [
     and (current_year - int(movie['release_year'])) <= AGE_LIMIT
 ]
 
+# Sort by popularity descending, but also show rank if available
 movies_today.sort(key=lambda m: float(m.get('popularity', 0)), reverse=True)
 
 print(f"Movies released on {mm_dd.replace('_', '-')}:" )
 if movies_today:
     for movie in movies_today:
-        print(f"- {movie['title']} (Popularity: {movie.get('popularity', 'N/A')}, Release Date: {movie['release_date']})")
+        rank = movie.get('popularity_rank')
+        rank_str = f" (Rank: {rank})" if rank else ""
+        print(f"- {movie['title']} (Popularity: {movie.get('popularity', 'N/A')}, Release Date: {movie['release_date']}){rank_str}")
 else:
     print("No movies found for today.")
 print(f"Total: {len(movies_today)}")

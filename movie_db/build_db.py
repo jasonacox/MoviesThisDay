@@ -35,6 +35,7 @@ RUNTIME = 20                # Minimum runtime in minutes
 POPULARITY_THRESHOLD = 10   # Minimum popularity to consider fetching OMDB data
 DEBUG = False               # Set to True for debug output
 OMDB_RAW = "omdb_raw.jsonl" # Raw OMDb data file
+TMDB_TRENDING_CSV = 'TMDB_trending_movies.csv'  # TMDB trending movies CSV file
 
 # TMDB_movie_dataset_v11.csv columns:
 # "id","title","vote_average","vote_count","status",
@@ -44,11 +45,139 @@ OMDB_RAW = "omdb_raw.jsonl" # Raw OMDb data file
 # "tagline","genres","production_companies","production_countries",
 # "spoken_languages","keywords"
 
-print("Reading TMDB_movie_dataset_v11.csv...")
+# Check for TMDB_movie_dataset_v11.csv before processing
+TMDB_CSV = 'TMDB_movie_dataset_v11.csv'
+if not os.path.exists(TMDB_CSV):
+    print(f"[ERROR] {TMDB_CSV} not found. Exiting now.\n")
+    exit(1)
+
+# Load API kes from .env
+load_dotenv()
+OMDB_API_KEY = os.getenv('OMDB_API_KEY')
+TMDB_API_KEY = os.getenv('TMDB_API_KEY')
+
+# TMDB genre id to name mapping
+TMDB_GENRE_ID_TO_NAME = {
+    28: "Action",
+    12: "Adventure",
+    16: "Animation",
+    35: "Comedy",
+    80: "Crime",
+    99: "Documentary",
+    18: "Drama",
+    10751: "Family",
+    14: "Fantasy",
+    36: "History",
+    27: "Horror",
+    10402: "Music",
+    9648: "Mystery",
+    10749: "Romance",
+    878: "Science Fiction",
+    10770: "TV Movie",
+    53: "Thriller",
+    10752: "War",
+    37: "Western"
+}
+
+# Fetch TMDB trending movies
+if not TMDB_API_KEY:
+    print("[WARNING] No TMDB API key found. Skipping TMDB trending movies fetch.")
+else:
+    trending_output = {}
+    trending_movies = []
+    tmdb_trend = f'https://api.themoviedb.org/3/trending/movie/day'
+    tmdb_current_year = f'https://api.themoviedb.org/3/discover/movie?language=en-US&sort_by=popularity.desc&include_adult=false&include_video=false&page=1&primary_release_year={datetime.now().year}'
+    for tmdb_url in [tmdb_trend, tmdb_current_year]:
+        print(f"Fetching TMDB movies... via {tmdb_url}")
+        try:
+            headers = {
+                "accept": "application/json",
+                "Authorization": "Bearer " + TMDB_API_KEY
+            }
+            response = requests.get(tmdb_url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                trending_data = response.json()
+                print(f"Found {len(trending_data['results'])} trending movies.")
+                #print(trending_data)
+                # "id","title","vote_average","vote_count","status","release_date","revenue","runtime","adult","backdrop_path","budget","homepage","imdb_id","original_language","original_title","overview","popularity","poster_path","tagline","genres","production_companies","production_countries","spoken_languages","keywords"
+                # Save trending movies to CSV in the same format as TMDB_CSV
+                for movie in trending_data['results']:
+                    # look up imdb for movie
+                    id_movie = movie.get('id')
+                    url = f"https://api.themoviedb.org/3/movie/{id_movie}?language=en-US"
+                    resp2 = requests.get(url, headers=headers, timeout=10)
+                    #print(f"---{id_movie}--->>")
+                    #print(resp2.json())
+                    trending_output["id"] = movie.get("id")
+                    trending_output["title"] = movie.get("title")
+                    trending_output["vote_average"] = resp2.json().get("vote_average")
+                    trending_output["vote_count"] = resp2.json().get("vote_count")
+                    trending_output["status"] = resp2.json().get("status", "")
+                    trending_output["release_date"] = movie.get("release_date")
+                    trending_output["revenue"] = resp2.json().get("revenue")
+                    trending_output["runtime"] = resp2.json().get("runtime", "")
+                    trending_output["adult"] = movie.get("adult", False)
+                    trending_output["backdrop_path"] = resp2.json().get("backdrop_path")
+                    trending_output["budget"] = resp2.json().get("budget")
+                    trending_output["homepage"] = resp2.json().get("homepage")
+                    trending_output["imdb_id"] = resp2.json().get("imdb_id", "")
+                    trending_output["original_language"] = resp2.json().get("original_language")
+                    trending_output["original_title"] = resp2.json().get("original_title", "")
+                    # Filter overview text to only allow alphanumeric chars and basic punctuation
+                    overview = resp2.json().get("overview", "")
+                    if overview:
+                        # Replace line breaks first
+                        overview = overview.replace("\r", " ").replace("\n", " ").replace("\t", " ")
+                        # Filter to only allow alphanumeric chars and basic punctuation
+                        filtered_overview = ''.join(c for c in overview if c.isalnum() or c in " .,!?;:()-'\"[]")
+                        # Normalize whitespace
+                        trending_output["overview"] = ' '.join(filtered_overview.split())
+                    else:
+                        trending_output["overview"] = ""
+                    trending_output["popularity"] = movie.get("popularity", 0.0)
+                    trending_output["poster_path"] = resp2.json().get("poster_path")
+                    trending_output["tagline"] = resp2.json().get("tagline", "")
+                    # Convert genre_ids to genre names
+                    genre_ids = movie.get("genre_ids", [])
+                    if genre_ids and isinstance(genre_ids, list):
+                        genre_names = [TMDB_GENRE_ID_TO_NAME.get(gid) for gid in genre_ids if gid in TMDB_GENRE_ID_TO_NAME]
+                        trending_output["genres"] = ", ".join(genre_names)
+                    else:
+                        trending_output["genres"] = ""
+                    # Convert production companies to comma-separated string
+                    production_companies = resp2.json().get("production_companies", [])
+                    company_names = [company.get("name", "") for company in production_companies if company.get("name")]
+                    trending_output["production_companies"] = ", ".join(company_names)
+                    trending_output["production_countries"] = resp2.json().get("production_countries", [])
+                    trending_output["spoken_languages"] = resp2.json().get("spoken_languages", [])
+                    trending_output["keywords"] = resp2.json().get("keywords", {}).get("keywords", [])
+                    trending_movies.append(trending_output.copy())
+                    print(f"Added: {trending_output['title']} (ID: {trending_output['imdb_id']})")
+            else:
+                print(f"[ERROR] TMDB API request failed with status code {response.status_code}: {response.text}")
+                continue
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] Error fetching TMDB trending movies: {e}")
+    # save it
+    with open(TMDB_TRENDING_CSV, 'w', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=trending_output.keys(), quoting=csv.QUOTE_ALL)
+        # writer.writeheader()
+        for movie in trending_movies:
+            writer.writerow(movie)
+    print(f"TMDB new movies saved to {TMDB_TRENDING_CSV}.")
+    print(f"Found {len(trending_movies)} new TMDB movies.")
+
+# Concatenate TMDB_CSV and TMDB_TRENDING_CSV to temporary file
+COMBINED_TMDB_CSV = 'combined_tmdb.csv'
+print(f"Combining {TMDB_CSV} and {TMDB_TRENDING_CSV} into {COMBINED_TMDB_CSV}...")
+command = f"cat {TMDB_CSV} {TMDB_TRENDING_CSV} > {COMBINED_TMDB_CSV}"
+os.system(command)
+
+print(f"Reading {COMBINED_TMDB_CSV}...")
 # Count total rows for progress bar
-with open('TMDB_movie_dataset_v11.csv', encoding='utf-8') as f:
+with open(COMBINED_TMDB_CSV, encoding='utf-8') as f:
     total_rows = sum(1 for _ in f) - 1  # minus header
-with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile:
+with open(COMBINED_TMDB_CSV, newline='', encoding='utf-8') as csvfile:
     reader = csv.DictReader(csvfile)
     row_count = 0
     added_count = 0
@@ -58,10 +187,7 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
     most_recent_date_str = None
     sum_popularity_over_10 = 0.0
     count_popularity_over_10 = 0
-    # Load OMDb API key from .env
-    load_dotenv()
-    OMDB_API_KEY = os.getenv('OMDB_API_KEY')
-    
+
     # Load OMDb cache if it exists
     omdb_cache = {}
     if os.path.exists(OMDB_RAW):
@@ -78,8 +204,27 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
     # Use a requests.Session for OMDb requests to enable connection reuse
     omdb_session = requests.Session()
     
+    # Main CSV processing loop
+    print(f"Total rows in {TMDB_CSV}: {total_rows}")
+    seen_ids = set()
     for row in reader:
         row_count += 1
+        movie_id = row['id']
+        # If we've already inserted this movie id, update popularity in the index and continue
+        if movie_id in seen_ids:
+            #print(f"Movie ID {movie_id} already seen, updating popularity... {row['title']}")
+            #print(row)
+            # Search index for this movie id and update popularity, vote_average, vote_count, and title
+            for movies_list in index.values():
+                for mov in movies_list:
+                    if mov['id'] == movie_id:
+                        mov['popularity'] = row['popularity']
+                        mov['vote_average'] = row['vote_average']
+                        mov['vote_count'] = row['vote_count']
+                        mov['title'] = row['title']
+                        #print(f"^^ Updated movie {mov['title']} (ID: {movie_id}) with new popularity {mov['popularity']}")
+                        break
+            continue
         # Check if the movie meets our criteria
         is_non_adult = row['adult'].lower() in ADULT
         is_target_language = row['original_language'] in LANGUAGES
@@ -228,7 +373,9 @@ with open('TMDB_movie_dataset_v11.csv', newline='', encoding='utf-8') as csvfile
                     'omdb_poster': row.get('omdb_poster'),
                     'omdb_plot': row.get('omdb_plot'),
                 }
+                #print(f" -- Adding movie: {movie['title']} (ID: {movie_id}, Release Date: {movie['release_date']})")
                 index[this_day].append(movie)
+                seen_ids.add(movie_id)
                 added_count += 1
         # Progress bar
         if row_count % 1000 == 0 or row_count == total_rows:
@@ -295,6 +442,26 @@ def apply_updates_jsonl(idx, updates_file_path):
 updates_path = 'updates.jsonl'
 if os.path.exists(updates_path):
     apply_updates_jsonl(index, updates_path)
+
+# --- Compute popularity rank for all movies ---
+print("Computing popularity ranks...")
+movie_popularity_list = []  # List of (movie_id, popularity)
+for movies_per_day in index.values():
+    for movie in movies_per_day:
+        try:
+            pop = float(movie.get('popularity', 0.0))
+        except (ValueError, TypeError):
+            pop = 0.0
+        movie_popularity_list.append((movie['id'], pop))
+# Sort by popularity descending
+movie_popularity_list.sort(key=lambda x: x[1], reverse=True)
+# Assign rank (1 = most popular)
+movie_id_to_rank = {movie_id: rank+1 for rank, (movie_id, _) in enumerate(movie_popularity_list)}
+# Add rank to each movie
+for movies_per_day in index.values():
+    for movie in movies_per_day:
+        movie['popularity_rank'] = movie_id_to_rank.get(movie['id'])
+print("Popularity ranks assigned.")
 
 # Prepare metadata
 metadata = {
