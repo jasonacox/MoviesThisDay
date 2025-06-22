@@ -15,8 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app.py ./
 COPY templates/ ./templates/
-COPY movie_db/movies_by_day.pkl.zip ./movie_db/movies_by_day.pkl.zip
 COPY logging.conf ./
+
+# Copy database archive (if missing, will be downloaded at runtime)
+# COPY movie_db/movies_by_day.pkl.zip ./movie_db/movies_by_day.pkl.zip
 
 # Expose port
 EXPOSE 8000
