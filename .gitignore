@@ -207,3 +207,4 @@ corrections.jsonl
 sandbox
 movie_db/combined_tmdb.csv
 movie_db/TMDB_trending_movies.csv
+upload-beta.sh

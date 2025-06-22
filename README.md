@@ -67,6 +67,12 @@ curl -G --data-urlencode 'genre=Action' 'http://localhost:8000/movies/by-genre'
 
 On first run, if the required `movie_db/movies_by_day.pkl` data file is missing, the app will automatically download and unzip it from a public source. No manual download is required for a fresh install.
 
+You can also manually download the latest zipped data file here:
+
+- [movies_by_day.pkl.zip (latest)](https://moviesthisday.s3.us-east-1.amazonaws.com/movies_by_day.pkl.zip)
+
+Place the downloaded zip file in the `movie_db/` directory and the app will extract it on startup if needed.
+
 ## Project Structure
 - `app.py` — Main FastAPI app and all endpoints
 - `templates/` — HTML templates (Bootstrap, modern UI)
@@ -85,8 +91,6 @@ This will:
 - Pull and run the latest MoviesThisDay image
 - Expose the app on port 8000 (or your chosen port)
 - Set the timezone via the `TZ` environment variable (default: America/Los_Angeles)
-- Set the corrections file location via the `CORRECTIONS_FILE` environment variable (default: `/data/corrections.jsonl`)
-- Mount the local `$(PWD)/data` directory to `/data` in the container (corrections and other persistent files are stored here)
 - Automatically restart the container unless stopped
 - Provide a healthcheck for the container
 

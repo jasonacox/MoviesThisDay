@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app.py ./
 COPY templates/ ./templates/
-COPY movie_db/movies_by_day.pkl ./movie_db/movies_by_day.pkl
+COPY movie_db/movies_by_day.pkl.zip ./movie_db/movies_by_day.pkl.zip
+COPY logging.conf ./
 
 # Expose port
 EXPOSE 8000
@@ -26,7 +27,7 @@ VOLUME ["/app/movie_db"]
 # Download data if missing (handled by app.py at runtime)
 
 # Start the FastAPI app with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--log-config", "logging.conf"]
 
 # To build the Docker image, run:
 # docker build -t moviesthisday .

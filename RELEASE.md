@@ -1,5 +1,18 @@
 # MoviesThisDay Release Notes
 
+## v0.1.8 (2025-06-21)
+- PKL data file download source updated to S3 for improved reliability and speed.
+- Added robust error handling: app now exits with a clear error if PKL download, extraction, or loading fails.
+- Improved Docker build/upload workflow: PKL is zipped before build, and uploaded to S3 automatically.
+- README updated with new S3 download location for PKL zip file and manual download instructions.
+- Added S3 upload step to `upload.sh` and improved verification of PKL/ZIP creation.
+- Added `/favicon.ico` route to serve a custom blue-gradient favicon as a base64-encoded PNG, matching the project theme.
+- Moved all non-standard library imports (e.g., base64) to the top of `app.py` for best practices and maintainability.
+- Confirmed all required third-party packages are present in `requirements.txt`; no changes needed.
+- Minor code cleanup and import organization in `app.py`.
+- Minor documentation and maintainability improvements.
+- Search UI improvements: Movie titles in search results are now clickable links to detail pages, and each result row features a modern hover card with full movie details and a "New Release" badge if applicable. This matches the main table's UX and improves discoverability and consistency.
+
 ## v0.1.7 (2025-06-20)
 - Trending/new release movies are now always included in the main index table, regardless of release date.
 - Added server-side detection of "New Release" (released within last 3 months) for all movies; badge appears in both the main table and hover card.
