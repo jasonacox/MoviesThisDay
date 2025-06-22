@@ -209,3 +209,4 @@ sandbox
 movie_db/combined_tmdb.csv
 movie_db/TMDB_trending_movies.csv
 upload-beta.sh
+movie_db/movies_by_day.pkl.zip
