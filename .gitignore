@@ -201,6 +201,7 @@ movie_db/movies_by_day.pkl
 movie_db/omdb_raw.jsonl
 movie_db/backup.sh
 movie_db/movies_by_day.orig.pkl
+movie_db/movies_by_day.orig.pkl.zip
 upload.sh
 .DS_Store
 corrections.jsonl
