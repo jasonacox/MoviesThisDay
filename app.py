@@ -36,11 +36,16 @@ from fastapi import FastAPI, HTTPException, Query, Request, Form, Body, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 
-VERSION = "0.1.8"
+VERSION = "0.1.9"
 
+# At startup, record the start time
+START_TIME = time.time()
+
+# Constants for filtering movies
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
 
+# Initialize FastAPI app
 app = FastAPI()
 
 # Set up Jinja2 templates
@@ -66,6 +71,9 @@ def on_shutdown():
     logger.info("MoviesThisDay is shutting down.")
 
 atexit.register(on_shutdown)
+
+# Simple in-memory cache for stats endpoints
+_stats_cache = {}
 
 # Download and unzip movies_by_day.pkl if missing
 if not os.path.exists(PKL_PATH):
@@ -248,7 +256,8 @@ async def movies_lookup(
     release_year: str = Query(None),
     runtime: str = Query(None, description="e.g. >120, <90, =100, 90-120"),
     genre: str = Query(None, description="Regex pattern for OMDb genre"),
-    studio: str = Query(None, description="Regex pattern for production company name")
+    studio: str = Query(None, description="Regex pattern for production company name"),
+    rated: str = Query(None, description="e.g. G, PG, <PG-13, >=R, NR, etc.")
 ):
     """
     Search for movies matching one or more query parameters.
@@ -262,11 +271,12 @@ async def movies_lookup(
         runtime (str, optional): Runtime filter (e.g. >120, <90, =100, 90-120).
         genre (str, optional): Regex pattern for OMDb genre.
         studio (str, optional): Regex pattern for production company name.
+        rated (str, optional): MPAA rating (e.g. G, PG, R, NC-17).
     Returns:
         JSONResponse: Matching movies and count.
     """
-    if not any([imdb_id, title, release_date, movie_id, release_year, runtime, genre, studio]):
-        raise HTTPException(status_code=400, detail="Provide at least one query parameter: imdb_id, title, release_date, id, release_year, runtime, genre, or studio.")
+    if not any([imdb_id, title, release_date, movie_id, release_year, runtime, genre, studio, rated]):
+        raise HTTPException(status_code=400, detail="Provide at least one query parameter: imdb_id, title, release_date, id, release_year, runtime, genre, studio, or rated.")
     # Validate regex fields
     if title is not None:
         if not title.strip():
@@ -297,6 +307,13 @@ async def movies_lookup(
     if release_year is not None:
         if not release_year.isdigit() or len(release_year) != 4:
             raise HTTPException(status_code=400, detail="Invalid 'release_year'. Provide a 4-digit year, e.g. 1999.")
+    if rated is not None:
+        if not rated.strip():
+            raise HTTPException(status_code=400, detail="Empty 'rated' parameter. Provide a non-empty rating.")
+        # Simple validation for common rating patterns
+        valid_ratings = ['G', 'PG', 'PG-13', 'R', 'NC-17', 'NR']
+        if rated not in valid_ratings and not re.match(r"^[<>]=?[A-Z-]+$", rated):
+            raise HTTPException(status_code=400, detail="Invalid 'rated' value. Use exact ratings like 'PG' or ranges like '<PG-13'.")
     # Load the movies index (assume already loaded as movies_by_day_index)
     all_movies = []
     for movies in movies_by_day_index.values():
@@ -342,6 +359,58 @@ async def movies_lookup(
     if studio:
         pattern = re.compile(studio, re.IGNORECASE)
         results = [m for m in results if m.get('production_companies') and pattern.search(m['production_companies'])]
+    if rated:
+        rated_map = {
+            'g': 1,
+            'tv-y7': 2,
+            'pg': 3, 'approved': 3,
+            'pg-13': 4, 'pg13': 4, 'tv-14': 4,
+            'r': 5,
+            'nc-17': 6, 'nc17': 6,
+            'nr': 7, 'not rated': 7, 'unrated': 7, '': 7, None: 7, 'n/a': 7,
+        }
+        def get_rated_val(val):
+            if val is None:
+                return 7
+            v = str(val).strip().lower()
+            return rated_map.get(v, 0)
+        expr = rated.strip().lower()
+        op = None
+        val = expr
+        # Parse operator
+        if expr.startswith('<='):
+            op = '<='
+            val = expr[2:].strip()
+        elif expr.startswith('>='):
+            op = '>='
+            val = expr[2:].strip()
+        elif expr.startswith('<'):
+            op = '<'
+            val = expr[1:].strip()
+        elif expr.startswith('>'):
+            op = '>'
+            val = expr[1:].strip()
+        elif expr.startswith('='):
+            op = '=='
+            val = expr[1:].strip()
+        else:
+            op = '=='
+            val = expr
+        val_num = rated_map.get(val, None)
+        if val_num is not None:
+            if op == '<=':
+                results = [m for m in results if get_rated_val(m.get('omdb_rated')) <= val_num]
+            elif op == '>=':
+                results = [m for m in results if get_rated_val(m.get('omdb_rated')) >= val_num]
+            elif op == '<':
+                results = [m for m in results if get_rated_val(m.get('omdb_rated')) < val_num]
+            elif op == '>':
+                results = [m for m in results if get_rated_val(m.get('omdb_rated')) > val_num]
+            elif op == '==':
+                results = [m for m in results if get_rated_val(m.get('omdb_rated')) == val_num]
+        else:
+            # If not a known rating, do nothing (or could return 0 results)
+            results = []
     return JSONResponse(content={"results": results, "count": len(results)})
 
 @app.get("/movies/by-imdb/{imdb_id}")
@@ -610,7 +679,7 @@ async def robots_txt():
     """
     return PlainTextResponse("User-agent: *\nDisallow: /docs\n")
 
-favicon_base64 = "data:image/png;base64,/9j/4QDKRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAIdpAAQAAAABAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABAAeQAAAHAAAABDAyMjGRAQAHAAAABAECAwCgAAAHAAAABDAxMDCgAQADAAAAAQABAACgAgAEAAAAAQAAABCgAwAEAAAAAQAAABCkBgADAAAAAQAAAAAAAAAAAAD/2wCEAAEBAQEBAQIBAQIDAgICAwQDAwMDBAUEBAQEBAUGBQUFBQUFBgYGBgYGBgYHBwcHBwcICAgICAkJCQkJCQkJCQkBAQEBAgICBAICBAkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCf/dAAQAAf/AABEIABAAEAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP6nfiL+1j8PfhZ+0N4V/Z68ZRS2tz4vtmlstQZ0Fss3mGOO3cHDBpWGEb7u4he9W/g5+1J4C+OPxU8a/DHwPDLKPBLwRT35ZDb3MkrSRuIQPmxG8TIWOASOOK4X47/sk6L+0D8RbzxD4vvEj0m68Ky6EkcaH7Vb3hu0uoL2Fz8gMBT5Rjk8Hit/4E/sz6J8A/iBq+teD3hi0O70LR9GtLRVPnIdM88yTSueHaYzbieuc5r90xFDgn/V/npyl9e9lHTXk5/aRvL/ABezbjyfAuVyvdpH5LTqcV/20oSjH6n7R66c/J7N2W+3PZ83xa8vLZcx/9k="
+favicon_base64 = "data:image/png;base64,/9j/4QDKRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAIdpAAQAAAABAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABAAeQAAAHAAAABDAyMjGRAQAHAAAABAECAwCgAAAHAAAABDAxMDCgAQADAAAAAQABAACgAgAEAAAAAQAAABCgAwAEAAAAAQAAABCkBgADAAAAAQAAAAAAAAAAAAD/2wCEAAEBAQEBAQIBAQIDAgICAwQDAwMDBAUEBAQEBAUGBQUFBQUFBgYGBgYGBgYHBwcHBwcICAgICAkJCQkJCQkJCQkBAQEBAgICBAICBAkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCf/dAAQAAf/AABEIABAAEAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP6nfiL+1j8PfhZ+0N4V/Z68ZRS2tz4vtmlstQZ0Fss3mGOO3cHDBpWGEb7u4he9W/g5+1J4C+OPxU8a/DHwPDLKPBLwRT35ZDb3MkrSRuIQPmxG8TIWOASOOK4X47/sk6L+0D8RbzxD4vvEj0m68Ky6EkcaH7Vb3hu0uoL2Fz8gMBT5Rjk8Hit/4E/sz6J8A/iBq+teD3hi0O70LR9GtLRVPnIdM88yTSueHaYzbieuc5r90xFDgn/V/npyl9e9lHTXk5/aRvL/ABezbjyfAuVyvdpH5LTqcV/20oSjH6n7R66c/J7N2W+3PZ83xa8vLZcx/9k="
 
 @app.get("/favicon.ico")
 async def favicon():
@@ -621,4 +690,219 @@ async def favicon():
     b64 = favicon_base64.split(",", 1)[-1]
     icon_bytes = base64.b64decode(b64)
     return Response(content=icon_bytes, media_type="image/x-icon")
+
+@app.get("/stats/movies_by_day")
+def stats_movies_by_day():
+    """
+    Return a dictionary of movie counts by MM-DD (month-day), filtered by popularity and age.
+    - Only includes movies with popularity above POPULARITY_THRESHOLD and within AGE_LIMIT years.
+    - Skips movies with missing or invalid release dates.
+    - Results are cached in-memory for performance.
+    Returns:
+        JSONResponse: {"date_counts": {"MM-DD": count, ...}}
+    """
+    if "movies_by_day" in _stats_cache:
+        return JSONResponse(content=_stats_cache["movies_by_day"])
+    from collections import Counter
+    current_year = datetime.now().year
+    today_date = datetime.now().date()
+    mmdd_counts = Counter()
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            try:
+                # Filter by popularity and age
+                if float(m.get('popularity', 0)) <= POPULARITY_THRESHOLD:
+                    continue
+                if not m.get('release_year') or (current_year - int(m['release_year'])) > AGE_LIMIT:
+                    continue
+            except Exception:
+                continue
+            date = m.get('release_date')
+            if not date or not date.strip():
+                continue
+            try:
+                mmdd = date[5:10]  # 'YYYY-MM-DD' -> 'MM-DD'
+                mmdd_counts[mmdd] += 1
+            except Exception:
+                continue
+    # Sort by month and day
+    sorted_counts = dict(sorted(mmdd_counts.items(), key=lambda x: (int(x[0][:2]), int(x[0][3:]))))
+    result = {"date_counts": sorted_counts}
+    _stats_cache["movies_by_day"] = result
+    return JSONResponse(content=result)
+
+@app.get("/stats/total_movies")
+def stats_total_movies():
+    """
+    Return the total number of movies and the number of 'popular' movies (filtered by popularity and age).
+    - 'Popular' movies have popularity above POPULARITY_THRESHOLD and are within AGE_LIMIT years.
+    - Results are cached in-memory for performance.
+    Returns:
+        dict: {"total_movies": int, "popular_movies": int}
+    """
+    if "total_movies" in _stats_cache:
+        return JSONResponse(content=_stats_cache["total_movies"])
+    current_year = datetime.now().year
+    today_date = datetime.now().date()
+    total = 0
+    popular_movies = 0
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            total += 1
+            try:
+                # Filter by popularity and age
+                if float(m.get('popularity', 0)) <= POPULARITY_THRESHOLD:
+                    continue
+                if not m.get('release_year') or (current_year - int(m['release_year'])) > AGE_LIMIT:
+                    continue
+            except Exception:
+                continue
+            popular_movies += 1
+    result = {"total_movies": total, "popular_movies": popular_movies}
+    _stats_cache["total_movies"] = result
+    return JSONResponse(content=result)
+
+@app.get("/stats/movies_by_rating")
+def stats_movies_by_rating():
+    """
+    Return a dictionary of movie counts by normalized rating, filtered by popularity and age.
+    - Normalizes ratings (e.g., 'A'/'APPROVED' to 'PG', 'PASSED' to 'PG-13', etc.).
+    - Only includes movies with popularity above POPULARITY_THRESHOLD and within AGE_LIMIT years.
+    - Results are sorted from lowest to highest age rating, with extras appended alphabetically.
+    - Results are cached in-memory for performance.
+    Returns:
+        dict: {"rating_counts": {rating: count, ...}}
+    """
+    if "movies_by_rating" in _stats_cache:
+        return JSONResponse(content=_stats_cache["movies_by_rating"])
+    from collections import Counter
+    current_year = datetime.now().year
+    rating_map = {
+        'G': 'G', 'TV-G': 'G',
+        'PG': 'PG', 'TV-PG': 'PG', 'M/PG': 'PG', 'GP': 'PG', 'M': 'PG',
+        'PG-13': 'PG-13', 'TV-14': 'PG-13', 'TV-13': 'PG-13', '13+': 'PG-13', '12': 'PG-13', '16+': 'NC-17',
+        'R': 'R', 'TV-MA': 'R', 'MA-17': 'R',
+        'NC-17': 'NC-17', 'X': 'NC-17', '18+': 'NC-17',
+        'A': 'PG', 'APPROVED': 'PG',
+        'PASSED': 'PG-13',
+        'NOT RATED': 'NR', 'NR': 'NR', 'UNRATED': 'NR', 'N/A': 'NR', '': 'NR', None: 'NR',
+        'TV-Y': 'TV-Y',
+        'TV-Y7': 'TV-Y7', 'TV-Y7-FV': 'TV-Y7',
+    }
+    rating_counts = Counter()
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            try:
+                # Filter by popularity and age
+                if float(m.get('popularity', 0)) <= POPULARITY_THRESHOLD:
+                    continue
+                if not m.get('release_year') or (current_year - int(m['release_year'])) > AGE_LIMIT:
+                    continue
+            except Exception:
+                continue
+            rated = m.get('omdb_rated') or m.get('rated') or ''
+            rated = rated.strip().upper() if rated else 'NR'
+            canonical = rating_map.get(rated, rated)
+            rating_counts[canonical] += 1
+    # Order: G, TV-Y, TV-Y7, PG, PG-13, R, NC-17, NR, then extras alphabetically
+    canonical_order = [
+        'G', 'TV-Y', 'TV-Y7', 'PG', 'PG-13', 'R', 'NC-17', 'NR'
+    ]
+    extra_ratings = sorted([r for r in rating_counts if r not in canonical_order])
+    ordered_keys = canonical_order + extra_ratings
+    sorted_counts = {k: rating_counts[k] for k in ordered_keys if k in rating_counts}
+    result = {"rating_counts": sorted_counts}
+    _stats_cache["movies_by_rating"] = result
+    return JSONResponse(content=result)
+
+@app.get("/stats/movies_by_year")
+def stats_movies_by_year():
+    """
+    Return a dictionary of movie counts by release year (year: count), filtered by popularity and age.
+    - Only includes movies with popularity above POPULARITY_THRESHOLD and within AGE_LIMIT years.
+    - Results are cached in-memory for performance.
+    Returns:
+        JSONResponse: {"year_counts": {year: count, ...}}
+    """
+    if "movies_by_year" in _stats_cache:
+        return JSONResponse(content=_stats_cache["movies_by_year"])
+    from collections import Counter
+    current_year = datetime.now().year
+    year_counts = Counter()
+    for movies in movies_by_day_index.values():
+        for m in movies:
+            try:
+                if float(m.get('popularity', 0)) <= POPULARITY_THRESHOLD:
+                    continue
+                if not m.get('release_year') or (current_year - int(m['release_year'])) > AGE_LIMIT:
+                    continue
+                year = str(m.get('release_year'))
+                if year:
+                    year_counts[year] += 1
+            except Exception:
+                continue
+    # Sort by year ascending
+    sorted_counts = dict(sorted(year_counts.items(), key=lambda x: int(x[0])))
+    result = {"year_counts": sorted_counts}
+    _stats_cache["movies_by_year"] = result
+    return JSONResponse(content=result)
+
+@app.get("/health")
+def health():
+    """
+    Health check endpoint that returns memory usage, selected global variables, app version, uptime, environment, cache, and movie count.
+    Returns:
+        dict: Health and status information for the MoviesThisDay app.
+    """
+    import os
+    # Memory usage (RSS in bytes)
+    mem_bytes = None
+    try:
+        import resource
+        mem_bytes = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    except Exception:
+        mem_bytes = None
+    # Only show these selected globals
+    show_keys = [
+        'VERSION', 'POPULARITY_THRESHOLD', 'AGE_LIMIT', 'MOVIE_DB_DIR', 'PKL_PATH', 'PKL_ZIP_URL', 'PKL_ZIP_PATH'
+    ]
+    global_summary = {}
+    for k in show_keys:
+        v = globals().get(k, None)
+        # Show only filename for paths
+        if "PATH" in k or "DIR" in k:
+            v = os.path.basename(v) if v else None
+        # Convert to string for JSON serialization
+        global_summary[k] = v
+
+    def pretty_mem(mem_bytes):
+        if not mem_bytes or mem_bytes <= 0:
+            return None
+        units = ["bytes", "KB", "MB", "GB"]
+        unit_index = 0
+        while mem_bytes >= 1024 and unit_index < len(units) - 1:
+            mem_bytes /= 1024
+            unit_index += 1
+        return f"{mem_bytes:.2f} {units[unit_index]}"
+
+    uptime_seconds = int(time.time() - START_TIME)
+    cache_keys = list(_stats_cache.keys())
+
+    return {
+        "status": "ok",
+        "memory_used": mem_bytes,
+        "memory_used_string": pretty_mem(mem_bytes),
+        "globals": global_summary,
+        "version": VERSION,
+        "uptime_seconds": uptime_seconds,
+        "cache_keys": cache_keys,
+        "database": movies_by_day_metadata, 
+    }
+
+@app.get("/ping")
+def ping():
+    """
+    Simple ping endpoint for uptime checks. Returns 'ok'.
+    """
+    return {"status": "ok"}
 

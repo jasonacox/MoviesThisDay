@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 MoviesToday Movie Database Build Script
 
@@ -340,6 +341,7 @@ with open(COMBINED_TMDB_CSV, newline='', encoding='utf-8') as csvfile:
                     row['omdb_imdb_votes'] = omdb_json.get('imdbVotes')
                     row['omdb_box_office'] = omdb_json.get('BoxOffice')
                     row['omdb_poster'] = omdb_json.get('Poster')
+                    row['omdb_rated'] = omdb_json.get('Rated')
         # Track min/max popularity
         if is_non_adult and is_target_language and is_long_enough:
             if popularity < min_popularity:
@@ -378,6 +380,7 @@ with open(COMBINED_TMDB_CSV, newline='', encoding='utf-8') as csvfile:
                     'production_companies': row.get('production_companies', ''),
                     'omdb_poster': row.get('omdb_poster'),
                     'omdb_plot': row.get('omdb_plot'),
+                    'omdb_rated': row.get('omdb_rated'),
                 }
                 #print(f" -- Adding movie: {movie['title']} (ID: {movie_id}, Release Date: {movie['release_date']})")
                 index[this_day].append(movie)
@@ -470,14 +473,30 @@ for movies_per_day in index.values():
 print("Popularity ranks assigned.")
 
 # Prepare metadata
+num_movies = sum(len(movies) for movies in index.values())
+num_movies_popular = 0
+for movies in index.values():
+    for movie in movies:
+        try:
+            if float(movie.get('popularity', 0.0)) >= POPULARITY_THRESHOLD:
+                num_movies_popular += 1
+        except (ValueError, TypeError):
+            pass
 metadata = {
     'generated_at': datetime.now().isoformat(),
+    'build_timestamp': int(time.time()),
     'project_url': 'https://github.com/jasonacox/MoviesToday',
     'min_popularity': min_popularity if min_popularity != float('inf') else None,
     'max_popularity': max_popularity if max_popularity != float('-inf') else None,
     'most_recent_release_date': most_recent_date_str,
     'avg_popularity_over_10': avg_popularity_over_10 if count_popularity_over_10 > 0 else None,
-    'count_popularity_over_10': count_popularity_over_10
+    'count_popularity_over_10': count_popularity_over_10,
+    'num_movies': num_movies,
+    'num_movies_popular': num_movies_popular,
+    'LANGUAGES': LANGUAGES,
+    'ADULT': ADULT,
+    'RUNTIME': RUNTIME,
+    'POPULARITY_THRESHOLD': POPULARITY_THRESHOLD
 }
 
 # Write the index to a JSON file

@@ -312,7 +312,31 @@
             // Studio
             let studio = movie.production_companies ? `<div class='hover-studio'>${movie.production_companies}</div>` : '';
             // Description
-            let desc = movie.omdb_plot ? `<div class='hover-desc'>${movie.omdb_plot}</div>` : '';
+            let desc = '';
+            if (movie.omdb_plot) {
+                desc = `<div class='hover-desc'>${movie.omdb_plot}`;
+                if (movie.omdb_rated) {
+                    let rated = movie.omdb_rated.trim();
+                    let ratedLower = rated.toLowerCase();
+                    let ratedSuffix = '';
+                    if (rated === 'A' || ratedLower === 'approved') {
+                        ratedSuffix = '(Approved)';
+                    } else if (
+                        rated === 'NR' ||
+                        ratedLower === 'n/a' ||
+                        ratedLower === 'not rated' ||
+                        rated === ''
+                    ) {
+                        ratedSuffix = '(Not Rated)';
+                    } else {
+                        ratedSuffix = `(Rated ${rated})`;
+                    }
+                    desc += ` <span style='color:#888; font-size:0.97em;'>${ratedSuffix}</span>`;
+                } else {
+                    desc += ` <span style='color:#888; font-size:0.97em;'>(Not Rated)</span>`;
+                }
+                desc += `</div>`;
+            }
             // IMDB rating bar
             let imdbBar = '';
             if (movie.omdb_imdb_rating) {
@@ -420,15 +444,25 @@
                 </div>
             </div>
             <div class="col-lg-9 d-flex flex-column" style="height: 90vh; padding-bottom:40px;">
-                <form class="mb-3 d-flex justify-content-end align-items-center" method="get">
+                <form class="mb-3 d-flex justify-content-end align-items-center" method="get" id="filterForm">
                     {% if request.query_params.get('date') %}
                         <input type="hidden" name="date" value="{{ request.query_params.get('date') }}">
                     {% endif %}
                     <label for="sort" class="me-2 mb-0">Sort by:</label>
-                    <select name="sort" id="sort" class="form-select w-auto me-2" onchange="this.form.submit()">
+                    <select name="sort" id="sort" class="form-select w-auto me-2" onchange="document.getElementById('filterForm').submit()">
                         <option value="popularity" {% if sort_by == 'popularity' %}selected{% endif %}>Popularity</option>
                         <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
                         <option value="year" {% if sort_by == 'year' %}selected{% endif %}>Year</option>
+                    </select>
+                    <label for="rated_filter" class="me-2 mb-0 ms-3">Rated:</label>
+                    <select name="rated_filter" id="rated_filter" class="form-select w-auto me-2" onchange="document.getElementById('filterForm').submit()">
+                        <option value="all" {% if request.query_params.get('rated_filter', 'all') == 'all' %}selected{% endif %}>All</option>
+                        <option value="g" {% if request.query_params.get('rated_filter') == 'g' %}selected{% endif %}>G</option>
+                        <option value="tv-y7" {% if request.query_params.get('rated_filter') == 'tv-y7' %}selected{% endif %}>TV-Y7</option>
+                        <option value="pg" {% if request.query_params.get('rated_filter') == 'pg' %}selected{% endif %}>PG</option>
+                        <option value="pg-13" {% if request.query_params.get('rated_filter') == 'pg-13' %}selected{% endif %}>PG-13</option>
+                        <option value="r" {% if request.query_params.get('rated_filter') == 'r' %}selected{% endif %}>R</option>
+                        <option value="nc-17" {% if request.query_params.get('rated_filter') == 'nc-17' %}selected{% endif %}>NC-17</option>
                     </select>
                 </form>
                 <div class="flex-grow-1 overflow-auto table-responsive min-height-0">
@@ -436,6 +470,7 @@
                         <thead>
                             <tr>
                                 <th style="width:auto; min-width:140px;" class="text-truncate">Title</th>
+                                <th style="width:70px;">Rated</th>
                                 <th style="width:70px;">Year</th>
                                 <th style="width:80px;">Runtime</th>
                                 <th style="width:120px;">Popularity</th>
@@ -444,6 +479,18 @@
                         </thead>
                         <tbody>
                         {% for movie in movies %}
+                            {% set rated_map = {
+                                'g': 1,
+                                'tv-y7': 2,
+                                'pg': 3, 'approved': 3,
+                                'pg-13': 4, 'pg13': 4, 'tv-14': 4,
+                                'r': 5,
+                                'nc-17': 6, 'nc17': 6,
+                                'nr': 7, 'not rated': 7, 'unrated': 7, '': 7, None: 7, 'n/a': 7,
+                            } %}
+                            {% set rated_val = rated_map.get(movie.omdb_rated|lower, 0) %}
+                            {% set filter_val = rated_map.get(request.query_params.get('rated_filter', 'all')|lower, 99) %}
+                            {% if request.query_params.get('rated_filter', 'all') == 'all' or rated_val <= filter_val %}
                             <tr>
                                 <td class="text-truncate" style="max-width:180px; word-break:break-word; white-space:nowrap;">
                                     {% if movie.imdb_id %}
@@ -454,6 +501,13 @@
                                     {% if movie.is_new_release %}
                                         <span class="badge bg-success ms-2" style="font-size:0.85em;">New Release</span>
                                     {% endif %}
+                                </td>
+                                <td style="font-size:0.87em; color:#888888; text-align:left;">
+                                    {% if movie.omdb_rated %}
+                                        {% if movie.omdb_rated|lower == 'not rated' %}NR
+                                        {% elif movie.omdb_rated|lower == 'approved' %}A
+                                        {% else %}{{ movie.omdb_rated }}{% endif %}
+                                    {% else %}-{% endif %}
                                 </td>
                                 <td>{{ movie.release_year }}</td>
                                 <td>{% if movie.runtime %}{{ movie.runtime }} min{% else %}-{% endif %}</td>
@@ -474,6 +528,7 @@
                                     {% endif %}
                                 </td>
                             </tr>
+                            {% endif %}
                         {% endfor %}
                         </tbody>
                     </table>

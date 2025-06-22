@@ -1,5 +1,19 @@
 # MoviesThisDay Release Notes
 
+## v0.1.9 (2025-06-22)
+- About page: Added Chart.js line graph for movies by year, with trend-based forecasting for both the prior year and current year.
+- Forecast logic: Both last year and current year are now forecasted using the previous 5 years (excluding the year being forecasted), and plotted as red points on the graph.
+- Improved About page chart legend and forecast point styles for clarity.
+- Minor About page JavaScript and UI/UX improvements for maintainability and accuracy.
+- Added Movie Ratings (e.g. G, PG, PG-13) display and controls to homepage and search.
+- Major maintainability and documentation improvements: Added detailed docstrings and inline comments to all /stats endpoints and key backend logic.
+- Implemented in-memory caching for /stats endpoints (movies_by_day, total_movies, movies_by_rating) for improved performance.
+- Enhanced movie rating normalization and filtering logic for statistics and search endpoints, including robust mapping and ordering of ratings.
+- About page: Added two modern Chart.js bar graphs (movies by day, movies by rating) with improved color, gradient, and month labeling. Displayed total and popular movie counts above the graphs.
+- UI/UX: Improved About and Search pages for compactness, clarity, and mobile usability. Search results now show rating under release date, and filter logic is more advanced.
+- Minor bugfixes, code cleanup, and improved logging for startup and shutdown events.
+- All changes made using best practices for code clarity, maintainability, and documentation.
+
 ## v0.1.8 (2025-06-21)
 - PKL data file download source updated to S3 for improved reliability and speed.
 - Added robust error handling: app now exits with a clear error if PKL download, extraction, or loading fails.

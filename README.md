@@ -26,8 +26,10 @@ Website: [moviesthisday.com](https://moviesthisday.com)
 <img width="1199" alt="image" src="https://github.com/user-attachments/assets/5d2a8d0a-95e0-4939-8b3d-c80195dad3a0" />
 
 ## API Endpoints
+- `/ping` — Simple health check (returns `{ "status": "ok" }`)
+- `/health` — Detailed health and status info (memory, uptime, version, database metadata, etc.)
 - `/movies/today` — Movies released today (JSON)
-- `/movies/lookup` — Flexible search by any combination of: `imdb_id`, `title` (regex), `release_date`, `id`, `release_year`, `runtime`, `genre` (regex), `studio` (regex)
+- `/movies/lookup` — Flexible search by any combination of: `imdb_id`, `title` (regex), `release_date`, `id`, `release_year`, `runtime`, `genre` (regex), `studio` (regex), `rated`
 - `/movies/by-imdb/{imdb_id}` — Lookup by IMDb ID
 - `/movies/by-title?title=...` — Search by title (regex)
 - `/movies/by-release-date/{release_date}` — Search by release date (YYYY-MM-DD)
@@ -36,6 +38,10 @@ Website: [moviesthisday.com](https://moviesthisday.com)
 - `/movies/by-studio?studio=...` — Search by studio (regex)
 - `/movies/by-day/{mm_dd}` — Movies released on a specific MM-DD (all years)
 - `/movie/{imdb_id}` — Get all available details for a movie by IMDb ID (JSON, 404 if not found)
+- `/stats/movies_by_day` — Movie counts by MM-DD (JSON, for stats/graphs)
+- `/stats/total_movies` — Total and popular movie counts (JSON)
+- `/stats/movies_by_rating` — Movie counts by normalized rating (JSON)
+- `/stats/movies_by_year` — Movie counts by release year (JSON)
 
 ### Example API Usage
 
@@ -47,7 +53,7 @@ curl -X GET 'http://localhost:8000/movies/today'
 curl -X GET 'http://localhost:8000/movies/by-day/06-15'
 
 # Search by title (regex)
-curl -G --data-urlencode 'title=matrix' 'http://localhost:8000/movies/by-title'
+curl -G --data-urlencode 'title=^tron' 'http://localhost:8000/movies/by-title'
 
 # Search by studio (regex)
 curl -G --data-urlencode 'studio=Warner' 'http://localhost:8000/movies/by-studio'
@@ -106,6 +112,27 @@ docker run -d \
 ```
 
 See `run.sh` for a robust startup script with healthcheck, log tailing, and persistent data volume.
+
+## MCP Integration: Use MoviesThisDay with Claude Desktop and AI Assistants
+
+MoviesThisDay includes an optional [MCP (Model Context Protocol) server](./mcp/) for integration with AI chatbots and tools such as Claude Desktop.
+
+- The MCP server allows AI assistants to fetch a summary of popular movies released on a given day in history, using the public MoviesThisDay API.
+- Works with Claude Desktop, fastmcp, and any MCP-compatible client.
+- See [`mcp/README.md`](./mcp/README.md) for setup and usage details.
+
+**Example Claude Desktop Use Case:**
+
+<img width="640" alt="image" src="https://github.com/user-attachments/assets/8b94a28a-33ec-4700-b4a1-546aab6489fa" />
+
+With the MCP server running, you can ask Claude questions like:
+- "What movies were released today in history?"
+- "List movies released on July 4th."
+- "What movies came out on 1999-03-31?"
+
+Claude will call the MoviesThisDay tool and display a summary of movies released on the requested date.
+
+---
 
 ## Author & License
 - Author: Jason A. Cox

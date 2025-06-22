@@ -43,6 +43,21 @@
       box-shadow: 0 4px 24px rgba(30,41,59,0.08);
       padding: 24px 18px;
       margin-bottom: 24px;
+      font-size: 0.97rem;
+    }
+    .search-sidebar .form-label {
+      font-size: 0.97em;
+      margin-bottom: 0.12rem;
+    }
+    .search-sidebar .form-control {
+      font-size: 0.97em;
+      padding: 6px 10px;
+      height: 2.1em;
+      min-height: 32px;
+    }
+    .search-sidebar .btn {
+      font-size: 0.97em;
+      padding: 6px 0;
     }
     .results-table {
       background: #fff;
@@ -178,6 +193,10 @@
           <div class="mb-2">
             <label class="form-label">Studio (regex)</label>
             <input type="text" class="form-control" name="studio" placeholder="e.g. Warner">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Rated (e.g. G, PG, &lt;PG-13, &gt;=R)</label>
+            <input type="text" class="form-control" name="rated" placeholder="NC-17">
           </div>
           <div class="d-flex gap-2 mt-2">
             <button type="submit" class="btn w-50" id="searchBtn" style="background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%); color: #fff; font-weight: 600; border: none;">Search</button>
@@ -324,7 +343,27 @@
           <td style="word-break:break-word; white-space:normal;">
             ${movie.imdb_id ? `<a href='/details/${movie.imdb_id}' style='color:#111; text-decoration:none; font-weight:inherit;'>${movie.title || ''}</a>` : (movie.title || '')}
           </td>
-          <td>${movie.release_date || ''}</td>
+          <td>${movie.release_date || ''}
+            <div style="font-size:0.87em; color:#888;">
+              ${(() => {
+                if (!movie.omdb_rated) return '';
+                let rated = movie.omdb_rated.trim();
+                let ratedLower = rated.toLowerCase();
+                if (rated === 'A' || ratedLower === 'approved') {
+                  return '(Approved)';
+                } else if (
+                  rated === 'NR' ||
+                  ratedLower === 'n/a' ||
+                  ratedLower === 'not rated' ||
+                  rated === '' || ratedLower === 'unrated' || ratedLower === 'not yet rated'
+                ) {
+                  return '(Not Rated)';
+                } else {
+                  return `(Rated ${rated})`;
+                }
+              })()}
+            </div>
+          </td>
           <td>${movie.runtime ? movie.runtime + ' min' : '-'}</td>
           <td>
             <div style="background:#e0e7ef; border-radius:6px; height:18px; width:100px; position:relative;">
@@ -430,7 +469,31 @@
       }
       title += `</div>`;
       let studio = movie.production_companies ? `<div class='hover-studio'>${movie.production_companies}</div>` : '';
-      let desc = movie.omdb_plot ? `<div class='hover-desc'>${movie.omdb_plot}</div>` : '';
+      let desc = '';
+      if (movie.omdb_plot) {
+        desc = `<div class='hover-desc'>${movie.omdb_plot}`;
+        if (movie.omdb_rated) {
+          let rated = movie.omdb_rated.trim();
+          let ratedLower = rated.toLowerCase();
+          let ratedSuffix = '';
+          if (rated === 'A' || ratedLower === 'approved') {
+            ratedSuffix = '(Approved)';
+          } else if (
+            rated === 'NR' ||
+            ratedLower === 'n/a' ||
+            ratedLower === 'not rated' ||
+            rated === ''
+          ) {
+            ratedSuffix = '(Not Rated)';
+          } else {
+            ratedSuffix = `(Rated ${rated})`;
+          }
+          desc += ` <span style='color:#888; font-size:0.97em;'>${ratedSuffix}</span>`;
+        } else {
+          desc += ` <span style='color:#888; font-size:0.97em;'>(Not Rated)</span>`;
+        }
+        desc += `</div>`;
+      }
       let imdbBar = '';
       if (movie.omdb_imdb_rating) {
         let rating = movie.omdb_imdb_rating.split('/')[0];
