@@ -14,7 +14,7 @@ docker run -d \
   --name moviesthisday \
   -p $PORT:8000 \
   --restart unless-stopped \
-  --health-cmd="curl -f http://localhost:$PORT/ || exit 1" \
+  --health-cmd="curl -f http://localhost:$PORT/ping || exit 1" \
   --health-interval=30s \
   --health-timeout=10s \
   --health-retries=3 \

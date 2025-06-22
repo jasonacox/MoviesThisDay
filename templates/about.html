@@ -11,6 +11,7 @@
     .container { margin-top: 40px; }
     h1 { font-weight: 700; margin-bottom: 30px; }
     .card { max-width: 700px; margin: 2rem auto; }
+    .card-body { font-size: 0.90rem; }
     .footer {
       background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
       color: #fff;
@@ -67,35 +68,310 @@
       <a class="nav-link d-inline px-2" href="/search">Search</a>
     </nav>
   </div>
-  <div class="container mt-5 pt-5">
+  <div class="container" style="margin-top: 105px;">
     <div class="card shadow-sm">
       <div class="card-body position-relative">
         <span class="badge bg-primary position-absolute top-0 end-0 m-3" style="font-size:1.1rem;">{{ "{:,}".format(movie_count) }} Movies</span>
         <h2 class="card-title mb-3">About MoviesThisDay</h2>
         <h5>What is this tool?</h5>
         <p>MoviesThisDay is a simple tool to provide a list of movies made on this date in history. It uses the <a href="https://www.themoviedb.org/" target="_blank">TMDB</a> and <a href="https://www.omdbapi.com/" target="_blank">OMDb</a> datasets and offers both a modern web UI and a robust API.</p>
-        <p><small><b>Note:</b> IMDb index IDs are included to make it easy for users to look up movies on <a href="https://www.imdb.com/" target="_blank">IMDb</a>.</small></p>
-        <h5>How to use this tool?</h5>
         <ul>
-          <li>Use the homepage to browse movies released on today's date.</li>
-          <li>Use the date picker or navigation to view other days.</li>
-          <li>Access the API endpoints for advanced queries (see examples below).</li>
+          <li>Discovery: Navigate to the <a href="/">homepage</a> to browse movies released on today's date or others.</li>
+          <li>Search: Use the <a href="/search">search page</a> to find movies by title, studio, genre, or more.</li>
+          <li>MCP: Install as an MCP for Chatbots or other AI Agents (see <a href="https://github.com/jasonacox/MoviesThisDay/tree/main/mcp" target="_blank">setup details</a>)</li>
+          <li>API: Access the API endpoints for advanced queries (see <a href="https://github.com/jasonacox/MoviesThisDay/blob/main/README.md#api-endpoints" target="_blank">documentation</a>).</li>
         </ul>
-        <h6>API Examples:</h6>
+        <h5>Movie Database Statistics</h5>
+        <ul id="movieStats"></ul>
+        <div class="mb-3 ps-4">
+          <canvas id="moviesByDayChart" height="80"></canvas>
+        </div>
+        <div class="mb-3 ps-4">
+          <canvas id="moviesByRatingChart" height="85"></canvas>
+        </div>
+        <div class="mb-3 ps-4">
+          <canvas id="moviesByYearChart" height="85"></canvas>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script>
+          // Fetch data from the new /stats/movies_by_day endpoint
+          fetch('/stats/movies_by_day')
+            .then(r => r.json())
+            .then(data => {
+              const dateCounts = data.date_counts || {};
+              // Sort MM-DD keys as dates
+              const sortedKeys = Object.keys(dateCounts).sort((a, b) => {
+                const [am, ad] = a.split('-').map(Number);
+                const [bm, bd] = b.split('-').map(Number);
+                return am === bm ? ad - bd : am - bm;
+              });
+              const labels = sortedKeys.map(k => {
+                const [m, d] = k.split('-').map(Number);
+                const date = new Date(2000, m - 1, d); // 2000 is a leap year
+                return date.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+              });
+              const counts = sortedKeys.map(k => dateCounts[k]);
+              const ctx = document.getElementById('moviesByDayChart').getContext('2d');
+              // Create a blue gradient for the bars
+              const gradient = ctx.createLinearGradient(0, 0, 0, 120);
+              gradient.addColorStop(0, 'rgba(30,58,138,0.98)'); // #1e3a8a, very dark blue
+              gradient.addColorStop(1, 'rgba(37,99,235,0.85)'); // #2563eb, strong blue
+              new Chart(ctx, {
+                type: 'bar',
+                data: {
+                  labels: labels,
+                  datasets: [{
+                    label: 'Movies Released',
+                    data: counts,
+                    backgroundColor: gradient,
+                    borderColor: 'rgba(37,99,235,0.0)',
+                    borderWidth: 0
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: {
+                      title: { display: true, text: 'Date' },
+                      grid: { display: false, drawBorder: false },
+                      ticks: {
+                        autoSkip: false,
+                        callback: function(val, i, arr) {
+                          // Show month name at the first day of each month
+                          const label = this.getLabelForValue(val);
+                          if (!label) return '';
+                          const match = label.match(/^(\w{3}) 1$/);
+                          return match ? match[1] : '';
+                        }
+                      }
+                    },
+                    y: {
+                      title: { display: true, text: 'Number of Movies' },
+                      beginAtZero: true,
+                      grid: { display: false, drawBorder: false }
+                    }
+                  }
+                }
+              });
+            });
+          // Fetch and render movies by rating bar chart
+          fetch('/stats/movies_by_rating')
+            .then(r => r.json())
+            .then(data => {
+              const ratingCounts = data.rating_counts || {};
+              const ratingLabels = Object.keys(ratingCounts);
+              const ratingData = ratingLabels.map(k => ratingCounts[k]);
+              // Assign a color for each rating (G, TV-Y, TV-Y7, PG, PG-13, R, NC-17, NR, ...)
+              const ratingColors = {
+                'G': '#22c55e',        // Green
+                'TV-Y': '#10b981',     // Teal
+                'TV-Y7': '#06b6d4',    // Cyan
+                'PG': '#facc15',       // Yellow
+                'PG-13': '#f59e42',    // Orange
+                'R': '#ef4444',        // Red
+                'NC-17': '#a21caf',    // Purple
+                'NR': '#64748b',       // Gray
+              };
+              // For any extra/unknown ratings, assign a blue shade
+              const palette = ['#0ea5e9', '#6366f1', '#e11d48', '#f472b6', '#fbbf24', '#84cc16', '#14b8a6', '#a3a3a3'];
+              let paletteIdx = 0;
+              const backgroundColors = ratingLabels.map(r => ratingColors[r] || palette[paletteIdx++ % palette.length]);
+              const ctx2 = document.getElementById('moviesByRatingChart').getContext('2d');
+              new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                  labels: ratingLabels,
+                  datasets: [{
+                    label: 'Movies by Rating',
+                    data: ratingData,
+                    backgroundColor: backgroundColors,
+                    borderColor: backgroundColors,
+                    borderWidth: 0
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                      anchor: 'end',
+                      align: 'end',
+                      color: '#222',
+                      font: { size: 10 },
+                      formatter: function(value) {
+                        return value;
+                      }
+                    }
+                  },
+                  scales: {
+                    x: {
+                      title: { display: true, text: 'Rating' },
+                      grid: { display: false, drawBorder: false }
+                    },
+                    y: {
+                      title: { display: true, text: 'Number of Movies' },
+                      beginAtZero: true,
+                      grid: { display: false, drawBorder: false }
+                    }
+                  }
+                },
+                plugins: [ChartDataLabels]
+              });
+            });
+          // Fetch and render movies by year line chart
+          fetch('/stats/movies_by_year')
+            .then(r => r.json())
+            .then(data => {
+              const yearCounts = data.year_counts || {};
+              // Sort years numerically
+              const sortedYears = Object.keys(yearCounts).map(Number).sort((a, b) => a - b);
+              const labels = sortedYears.map(String);
+              const counts = sortedYears.map(y => yearCounts[y]);
+
+              // Forecast for both last year and current year using 5-year slope (excluding the year being forecasted)
+              const now = new Date();
+              const currentYear = now.getFullYear();
+              const idxCurrent = sortedYears.indexOf(currentYear - 1);
+              let forecastCurrent = null;
+              let forecastLast = null;
+              // Forecast for last year (using 5 years before last year)
+              if (idxCurrent > 0) {
+                const idxLast = idxCurrent - 1;
+                if (idxLast >= 5) {
+                  const n = 5;
+                  const yVals = sortedYears.slice(idxLast - n, idxLast); // 5 years before last year
+                  const xVals = yVals.map((y, i) => i);
+                  const cVals = yVals.map(y => yearCounts[y]);
+                  const meanX = xVals.reduce((a,b) => a+b,0)/n;
+                  const meanY = cVals.reduce((a,b) => a+b,0)/n;
+                  let num = 0, den = 0;
+                  for (let i = 0; i < n; i++) {
+                    num += (xVals[i] - meanX) * (cVals[i] - meanY);
+                    den += (xVals[i] - meanX) ** 2;
+                  }
+                  const slope = den === 0 ? 0 : num / den;
+                  const prevYearCount = yearCounts[sortedYears[idxLast-1]];
+                  forecastLast = Math.round(prevYearCount + slope);
+                }
+              }
+              // Forecast for current year (using 5 years before current year)
+              if (idxCurrent >= 5) {
+                const n = 5;
+                const yVals = sortedYears.slice(idxCurrent - n, idxCurrent); // 5 years before current year
+                const xVals = yVals.map((y, i) => i);
+                const cVals = yVals.map(y => yearCounts[y]);
+                const meanX = xVals.reduce((a,b) => a+b,0)/n;
+                const meanY = cVals.reduce((a,b) => a+b,0)/n;
+                let num = 0, den = 0;
+                for (let i = 0; i < n; i++) {
+                  num += (xVals[i] - meanX) * (cVals[i] - meanY);
+                  den += (xVals[i] - meanX) ** 2;
+                }
+                const slope = den === 0 ? 0 : num / den;
+                const lastYearCount = yearCounts[sortedYears[idxCurrent-1]];
+                forecastCurrent = Math.round(lastYearCount + slope);
+              }
+              // Plot chart with forecast points if available
+              new Chart(document.getElementById('moviesByYearChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                  labels: labels,
+                  datasets: [
+                    {
+                      label: 'Movies by Year',
+                      data: counts,
+                      fill: true,
+                      borderColor: 'rgba(37,99,235,0.85)',
+                      backgroundColor: 'rgba(37,99,235,0.10)',
+                      pointRadius: 1.5,
+                      pointHoverRadius: 4,
+                      tension: 0.18
+                    },
+                    forecastLast !== null ? {
+                      label: 'Forecast (' + (currentYear-1) + ')',
+                      data: labels.map((y, i) => y == String(currentYear-1) ? forecastLast : null),
+                      borderColor: 'rgba(239,68,68,0.7)', // red
+                      backgroundColor: 'rgba(239,68,68,0.10)',
+                      borderDash: [6, 4],
+                      pointRadius: 5,
+                      pointStyle: 'triangle',
+                      fill: false,
+                      tension: 0,
+                      order: 0
+                    } : null,
+                    forecastCurrent !== null ? {
+                      label: 'Forecast (' + currentYear + ')',
+                      data: labels.map((y, i) => y == String(currentYear) ? forecastCurrent : null),
+                      borderColor: 'rgba(239,68,68,0.9)', // red
+                      backgroundColor: 'rgba(239,68,68,0.15)',
+                      borderDash: [6, 4],
+                      pointRadius: 5,
+                      pointStyle: 'rectRot',
+                      fill: false,
+                      tension: 0,
+                      order: 0
+                    } : null
+                  ].filter(Boolean)
+                },
+                options: {
+                  responsive: true,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: {
+                      title: { display: true, text: 'Year' },
+                      grid: { display: false, drawBorder: false },
+                      ticks: {
+                        maxTicksLimit: 12,
+                        callback: function(val, i, arr) {
+                          // Show every 5th year label for clarity
+                          return i % 5 === 0 ? this.getLabelForValue(val) : '';
+                        }
+                      }
+                    },
+                    y: {
+                      title: { display: true, text: 'Number of Movies' },
+                      beginAtZero: true,
+                      grid: { display: false, drawBorder: false }
+                    }
+                  }
+                }
+              });
+            });
+        </script>
+        <ul id="movieStats" class="mb-3" style="font-size:0.97rem; color:#64748b; padding-left:1.2em; list-style-type:disc;"></ul>
+        <script>
+          // Fetch and display total and popular movie counts as bullet list items
+          fetch('/stats/total_movies')
+            .then(r => r.json())
+            .then(data => {
+              const el = document.getElementById('movieStats');
+              if (data && typeof data.total_movies === 'number' && typeof data.popular_movies === 'number') {
+                el.innerHTML = `
+                  <li>Total Movies: <b>${data.total_movies.toLocaleString()}</b></li>
+                  <li>Popular Movies: <b>${data.popular_movies.toLocaleString()}</b></li>
+                `;
+              }
+            });
+        </script>
+        <!-- Move API Examples here -->
+        <h5>API Examples:</h5>
         <ul class="mb-3">
-          <li><b>Movies released today (JSON):</b> <br><code>curl -X GET 'https://moviesthisday.com/movies/today'</code></li>
-          <li><b>Movies by day (MM-DD):</b> <br><code>curl -X GET 'https://moviesthisday.com/movies/by-day/06-15'</code></li>
-          <li><b>Search by title (regex):</b> <br><code>curl -G --data-urlencode 'title=matrix' 'https://moviesthisday.com/movies/by-title'</code></li>
-          <li><b>Search by studio (regex):</b> <br><code>curl -G --data-urlencode 'studio=Warner' 'https://moviesthisday.com/movies/by-studio'</code></li>
+          <li>Movies released today (JSON): <br><code>curl 'https://moviesthisday.com/movies/today'</code></li>
+          <li>Movies by day (MM-DD): <br><code>curl 'https://moviesthisday.com/movies/by-day/06-15'</code></li>
+          <li>Search by title (regex): <br><code>curl -G --data-urlencode 'title=^tron' 'https://moviesthisday.com/movies/by-title'</code></li>
         </ul>
         <h5>About the Author & Project</h5>
         <p><b>Author:</b> Jason A. Cox<br>
         <b>Project: </b><a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">https://github.com/jasonacox/MoviesThisDay</a></p>
+        <p>IMDb index IDs are included to make it easy for users to look up movies on <a href="https://www.imdb.com/" target="_blank">IMDb</a>.</p>
       </div>
     </div>
   </div>
   <div class="footer text-center" style="font-size:0.95rem;">
     Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
   </div>
+  <!-- Add Chart.js datalabels plugin CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </body>
 </html>

@@ -200,3 +200,69 @@ def test_corrections_endpoint_not_writable(monkeypatch):
     resp = client.post("/corrections", data=data)
     assert resp.status_code == 500
     assert "Oops" in resp.text
+
+def test_stats_movies_by_year():
+    resp = client.get("/stats/movies_by_year")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "year_counts" in data
+    assert isinstance(data["year_counts"], dict)
+    # Should have at least a few years
+    assert len(data["year_counts"]) > 5
+
+def test_stats_movies_by_day():
+    resp = client.get("/stats/movies_by_day")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "date_counts" in data
+    assert isinstance(data["date_counts"], dict)
+    assert len(data["date_counts"]) > 0
+
+def test_stats_total_movies():
+    resp = client.get("/stats/total_movies")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "total_movies" in data
+    assert "popular_movies" in data
+    assert isinstance(data["total_movies"], int)
+    assert isinstance(data["popular_movies"], int)
+
+
+def test_stats_movies_by_rating():
+    resp = client.get("/stats/movies_by_rating")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "rating_counts" in data
+    assert isinstance(data["rating_counts"], dict)
+    assert len(data["rating_counts"]) > 0
+
+
+def test_robots_txt():
+    resp = client.get("/robots.txt")
+    assert resp.status_code == 200
+    assert resp.text.startswith("User-agent: ")
+    assert "Disallow: /docs" in resp.text
+
+
+def test_favicon():
+    resp = client.get("/favicon.ico")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] in ("image/x-icon", "image/vnd.microsoft.icon", "image/png")
+    assert resp.content  # Should not be empty
+
+
+def test_health():
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert "version" in data
+    assert "uptime_seconds" in data
+    assert "database" in data
+
+
+def test_ping():
+    resp = client.get("/ping")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
