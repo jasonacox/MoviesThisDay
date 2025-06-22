@@ -741,7 +741,7 @@ def stats_total_movies():
         dict: {"total_movies": int, "popular_movies": int}
     """
     if "total_movies" in _stats_cache:
-        return _stats_cache["total_movies"]
+        return JSONResponse(content=_stats_cache["total_movies"])
     current_year = datetime.now().year
     today_date = datetime.now().date()
     total = 0
@@ -760,7 +760,7 @@ def stats_total_movies():
             popular_movies += 1
     result = {"total_movies": total, "popular_movies": popular_movies}
     _stats_cache["total_movies"] = result
-    return result
+    return JSONResponse(content=result)
 
 @app.get("/stats/movies_by_rating")
 def stats_movies_by_rating():
@@ -774,7 +774,7 @@ def stats_movies_by_rating():
         dict: {"rating_counts": {rating: count, ...}}
     """
     if "movies_by_rating" in _stats_cache:
-        return _stats_cache["movies_by_rating"]
+        return JSONResponse(content=_stats_cache["movies_by_rating"])
     from collections import Counter
     current_year = datetime.now().year
     rating_map = {
@@ -813,7 +813,7 @@ def stats_movies_by_rating():
     sorted_counts = {k: rating_counts[k] for k in ordered_keys if k in rating_counts}
     result = {"rating_counts": sorted_counts}
     _stats_cache["movies_by_rating"] = result
-    return result
+    return JSONResponse(content=result)
 
 @app.get("/stats/movies_by_year")
 def stats_movies_by_year():
