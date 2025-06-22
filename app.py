@@ -16,21 +16,27 @@ Author:
 - Project: https://github.com/jasonacox/MoviesToday
 """
 
+# Standard library imports
 import os
-import pickle
+import sys
 import re
-import urllib.request
-import zipfile
-from datetime import datetime
-import time
-import asyncio
 import json
+import time
+import base64
+import pickle
+import atexit
+import asyncio
+import logging
+import zipfile
+import urllib.request
+from datetime import datetime
 
+# Third-party imports
 from fastapi import FastAPI, HTTPException, Query, Request, Form, Body, status
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 
-VERSION = "0.1.7"
+VERSION = "0.1.8"
 
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
@@ -44,30 +50,51 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 # Movie database paths
 MOVIE_DB_DIR = os.path.join(os.path.dirname(__file__), 'movie_db')
 PKL_PATH = os.path.join(MOVIE_DB_DIR, 'movies_by_day.pkl')
-PKL_ZIP_URL = 'https://github.com/user-attachments/files/20749297/movies_by_day.pkl.zip'
+PKL_ZIP_URL = 'https://moviesthisday.s3.us-east-1.amazonaws.com/movies_by_day.pkl.zip'
 PKL_ZIP_PATH = os.path.join(MOVIE_DB_DIR, 'movies_by_day.pkl.zip')
 
 # Ensure movie_db directory exists
 os.makedirs(MOVIE_DB_DIR, exist_ok=True)
 
+# Set up logging
+logger = logging.getLogger("MoviesThisDay")
+
+# Notify that the app is starting
+logger.info(f"Starting MoviesThisDay v{VERSION}...")
+
+def on_shutdown():
+    logger.info("MoviesThisDay is shutting down.")
+
+atexit.register(on_shutdown)
+
 # Download and unzip movies_by_day.pkl if missing
 if not os.path.exists(PKL_PATH):
-    print('movies_by_day.pkl not found. Downloading...')
-    urllib.request.urlretrieve(PKL_ZIP_URL, PKL_ZIP_PATH)
-    with zipfile.ZipFile(PKL_ZIP_PATH, 'r') as zip_ref:
-        zip_ref.extractall(MOVIE_DB_DIR)
-    os.remove(PKL_ZIP_PATH)
-    print('movies_by_day.pkl downloaded and extracted.')
+    logger.info('movies_by_day.pkl not found.')
+    try:
+        if not os.path.exists(PKL_ZIP_PATH):
+            logger.info('Downloading zip...')
+            urllib.request.urlretrieve(PKL_ZIP_URL, PKL_ZIP_PATH)
+        logger.info('Extracting from zip...')
+        with zipfile.ZipFile(PKL_ZIP_PATH, 'r') as zip_ref:
+            zip_ref.extractall(MOVIE_DB_DIR)
+        logger.info('movies_by_day.pkl extracted successfully.')
+    except Exception as e:
+        logger.fatal(f"Could not retrieve or extract movies_by_day.pkl: {e}")
+        sys.exit(1)
 
 # Load the binary index and metadata once at startup
-with open(PKL_PATH, 'rb') as pklfile:
-    db = pickle.load(pklfile)
-    movies_by_day_metadata = db.get('metadata', {})
-    movies_by_day_index = db.get('index', {})
+try:
+    with open(PKL_PATH, 'rb') as pklfile:
+        db = pickle.load(pklfile)
+        movies_by_day_metadata = db.get('metadata', {})
+        movies_by_day_index = db.get('index', {})
+except Exception as e:
+    logger.fatal(f"Could not load movies_by_day.pkl: {e}")
+    sys.exit(1)
 
 # Log header with version information and movie count at startup
 movie_count = sum(len(movies) for movies in movies_by_day_index.values())
-print(f"""
+logger.info(f"""\n
 =====================================================
   MoviesThisDay v{VERSION}
   Author: Jason A. Cox
@@ -86,7 +113,7 @@ try:
         pass
     CORRECTIONS_WRITABLE = True
 except Exception as e:
-    print(f"[ERROR] Corrections file '{CORRECTIONS_FILE}' is not writable: {e}")
+    logger.error(f"Corrections file '{CORRECTIONS_FILE}' is not writable: {e}")
     CORRECTIONS_WRITABLE = False
 
 def filter_movies(movies, current_year, today_date):
@@ -555,7 +582,7 @@ async def submit_correction(imdb_id: str = Form(...), correction: str = Form(...
         with open(CORRECTIONS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
     except Exception as e:
-        print(f"[ERROR] Could not write to corrections file: {e}")
+        logger.error(f"Could not write to corrections file: {e}")
         time.sleep(1.0)
         return PlainTextResponse("Oops! Something went wrong.", status_code=500)
     time.sleep(1.0)  # Add a 1 second delay to mitigate rapid repeated requests
@@ -575,3 +602,23 @@ async def movie_json(imdb_id: str):
             if m.get('imdb_id') == imdb_id:
                 return JSONResponse(content=m)
     return JSONResponse(content={"error": "Movie not found"}, status_code=404)
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    """
+    Serve a robots.txt file that allows all crawling except for /docs.
+    """
+    return PlainTextResponse("User-agent: *\nDisallow: /docs\n")
+
+favicon_base64 = "data:image/png;base64,/9j/4QDKRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAIdpAAQAAAABAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABAAeQAAAHAAAABDAyMjGRAQAHAAAABAECAwCgAAAHAAAABDAxMDCgAQADAAAAAQABAACgAgAEAAAAAQAAABCgAwAEAAAAAQAAABCkBgADAAAAAQAAAAAAAAAAAAD/2wCEAAEBAQEBAQIBAQIDAgICAwQDAwMDBAUEBAQEBAUGBQUFBQUFBgYGBgYGBgYHBwcHBwcICAgICAkJCQkJCQkJCQkBAQEBAgICBAICBAkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCf/dAAQAAf/AABEIABAAEAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP6nfiL+1j8PfhZ+0N4V/Z68ZRS2tz4vtmlstQZ0Fss3mGOO3cHDBpWGEb7u4he9W/g5+1J4C+OPxU8a/DHwPDLKPBLwRT35ZDb3MkrSRuIQPmxG8TIWOASOOK4X47/sk6L+0D8RbzxD4vvEj0m68Ky6EkcaH7Vb3hu0uoL2Fz8gMBT5Rjk8Hit/4E/sz6J8A/iBq+teD3hi0O70LR9GtLRVPnIdM88yTSueHaYzbieuc5r90xFDgn/V/npyl9e9lHTXk5/aRvL/ABezbjyfAuVyvdpH5LTqcV/20oSjH6n7R66c/J7N2W+3PZ83xa8vLZcx/9k="
+
+@app.get("/favicon.ico")
+async def favicon():
+    """
+    Serve the favicon.ico as a base64-encoded PNG image (blue gradient theme).
+    """
+    # Remove data URL prefix if present
+    b64 = favicon_base64.split(",", 1)[-1]
+    icon_bytes = base64.b64decode(b64)
+    return Response(content=icon_bytes, media_type="image/x-icon")
+

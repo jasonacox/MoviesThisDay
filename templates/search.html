@@ -73,6 +73,65 @@
       .row.flex-lg-nowrap { flex-wrap: wrap !important; }
       .search-sidebar { margin-bottom: 16px; }
     }
+    .movie-hover-card {
+      display: none;
+      position: absolute;
+      z-index: 2000;
+      min-width: 320px;
+      max-width: 340px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(30,41,59,0.18);
+      padding: 18px 18px 14px 18px;
+      font-size: 1rem;
+      color: #22223b;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .movie-hover-card .hover-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+    .movie-hover-card .hover-studio {
+      color: #2563eb;
+      font-size: 0.98rem;
+      margin-bottom: 0.2rem;
+    }
+    .movie-hover-card .hover-desc {
+      font-size: 0.98rem;
+      color: #444;
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+    .movie-hover-card .hover-poster {
+      float: right;
+      width: 80px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 7px;
+      margin-left: 12px;
+      box-shadow: 0 2px 8px rgba(30,41,59,0.10);
+    }
+    .movie-hover-card .imdb-bar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-top: 4px;
+      margin-bottom: 2px;
+    }
+    .movie-hover-card .imdb-bar span {
+      width: 13px;
+      height: 13px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .movie-hover-card .imdb-label {
+      font-size: 0.97em;
+      color: #f5c518;
+      font-weight: 600;
+      margin-right: 6px;
+    }
   </style>
 </head>
 <body>
@@ -166,6 +225,67 @@
   <div class="footer text-center" style="font-size:0.95rem;">
     Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
   </div>
+  <style>
+    .movie-hover-card {
+      display: none;
+      position: absolute;
+      z-index: 2000;
+      min-width: 320px;
+      max-width: 340px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(30,41,59,0.18);
+      padding: 18px 18px 14px 18px;
+      font-size: 1rem;
+      color: #22223b;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .movie-hover-card .hover-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+    .movie-hover-card .hover-studio {
+      color: #2563eb;
+      font-size: 0.98rem;
+      margin-bottom: 0.2rem;
+    }
+    .movie-hover-card .hover-desc {
+      font-size: 0.98rem;
+      color: #444;
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+    .movie-hover-card .hover-poster {
+      float: right;
+      width: 80px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 7px;
+      margin-left: 12px;
+      box-shadow: 0 2px 8px rgba(30,41,59,0.10);
+    }
+    .movie-hover-card .imdb-bar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-top: 4px;
+      margin-bottom: 2px;
+    }
+    .movie-hover-card .imdb-bar span {
+      width: 13px;
+      height: 13px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .movie-hover-card .imdb-label {
+      font-size: 0.97em;
+      color: #f5c518;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+  </style>
   <script>
     let currentPage = 1;
     const pageSize = 25;
@@ -201,7 +321,9 @@
         let pop_pct = popularity_max > 0 ? (pop / (2 * popularity_max)) * 100 : 0;
         if (pop_pct > 100) pop_pct = 100;
         body.innerHTML += `<tr>
-          <td style="word-break:break-word; white-space:normal;">${movie.title || ''}</td>
+          <td style="word-break:break-word; white-space:normal;">
+            ${movie.imdb_id ? `<a href='/details/${movie.imdb_id}' style='color:#111; text-decoration:none; font-weight:inherit;'>${movie.title || ''}</a>` : (movie.title || '')}
+          </td>
           <td>${movie.release_date || ''}</td>
           <td>${movie.runtime ? movie.runtime + ' min' : '-'}</td>
           <td>
@@ -281,6 +403,103 @@
     function clearSearchForm() {
       window.location.reload();
     }
+    // Add hover card logic for movie titles in search results
+    const movieCache = {};
+    async function createMovieHoverCard(movieId, anchor) {
+      let movie = movieCache[movieId];
+      if (!movie) {
+        try {
+          const response = await fetch(`/movie/${movieId}`);
+          if (!response.ok) throw new Error('Failed to fetch movie data');
+          movie = await response.json();
+          movieCache[movieId] = movie;
+        } catch (error) {
+          console.error('Error fetching movie data:', error);
+          return;
+        }
+      }
+      let oldCard = document.getElementById('movie-hover-card');
+      if (oldCard) oldCard.remove();
+      let card = document.createElement('div');
+      card.className = 'movie-hover-card';
+      card.id = 'movie-hover-card';
+      let poster = movie.omdb_poster ? `<img class='hover-poster' src='${movie.omdb_poster}' alt='Poster'>` : '';
+      let title = `<div class='hover-title'>${movie.title || ''}`;
+      if (movie.is_new_release) {
+        title += ` <span class='badge bg-success ms-2' style='font-size:0.85em;'>New Release</span>`;
+      }
+      title += `</div>`;
+      let studio = movie.production_companies ? `<div class='hover-studio'>${movie.production_companies}</div>` : '';
+      let desc = movie.omdb_plot ? `<div class='hover-desc'>${movie.omdb_plot}</div>` : '';
+      let imdbBar = '';
+      if (movie.omdb_imdb_rating) {
+        let rating = movie.omdb_imdb_rating.split('/')[0];
+        let ratingVal = parseFloat(rating);
+        if (isNaN(ratingVal) || ratingVal < 0 || ratingVal > 10) {
+          ratingVal = 0;
+        }
+        imdbBar = `<div class='imdb-label'>IMDb Rating</div><div class='imdb-bar'>`;
+        for (let i = 1; i <= 10; i++) {
+          imdbBar += `<span style='background-color:${i <= Math.floor(ratingVal) ? '#f5c518' : '#e5e7eb'};'></span>`;
+        }
+        imdbBar += `<span style='font-size:0.97em; color:#444; margin-left:6px;'>${ratingVal}/10</span></div>`;
+      }
+      card.innerHTML = `${poster}${title}${studio}${desc}${imdbBar}`;
+      document.body.appendChild(card);
+      const rect = anchor.getBoundingClientRect();
+      let top = rect.bottom + window.scrollY + 6;
+      let left = rect.left + window.scrollX;
+      card.style.display = 'block';
+      let cardHeight = card.offsetHeight;
+      let willOverflowBottom = (top + cardHeight > window.scrollY + window.innerHeight);
+      if (willOverflowBottom) {
+        top = rect.top + window.scrollY - cardHeight - 6;
+        if (top < window.scrollY) top = window.scrollY + 8;
+      }
+      if (left + card.offsetWidth > window.innerWidth - 20) {
+        left = window.innerWidth - card.offsetWidth - 20;
+      }
+      card.style.top = `${top}px`;
+      card.style.left = `${left}px`;
+      card.style.opacity = 1;
+    }
+    function removeMovieHoverCard() {
+      let card = document.getElementById('movie-hover-card');
+      if (card) card.remove();
+    }
+    // Attach hover listeners to search results after rendering
+    function attachHoverListeners() {
+      document.querySelectorAll('#resultsBody a[data-imdb-id]').forEach(function(link) {
+        let timeout;
+        link.addEventListener('mouseenter', function(e) {
+          timeout = setTimeout(() => {
+            createMovieHoverCard(link.dataset.imdbId, link);
+          }, 200);
+        });
+        link.addEventListener('mouseleave', function(e) {
+          clearTimeout(timeout);
+          removeMovieHoverCard();
+        });
+      });
+      document.body.addEventListener('mousemove', function(e) {
+        let card = document.getElementById('movie-hover-card');
+        if (card && !card.contains(e.target) && !e.target.classList.contains('movie-title-link')) {
+          card.remove();
+        }
+      });
+    }
+    // Patch renderTablePage to add data-imdb-id and attach listeners
+    const origRenderTablePage = renderTablePage;
+    renderTablePage = function(page) {
+      origRenderTablePage(page);
+      // Add data-imdb-id to links
+      document.querySelectorAll('#resultsBody a[href^="/details/"]').forEach(function(link) {
+        const imdbId = link.getAttribute('href').split('/').pop();
+        link.setAttribute('data-imdb-id', imdbId);
+        link.classList.add('movie-title-link');
+      });
+      attachHoverListeners();
+    };
   </script>
 </body>
 </html>
