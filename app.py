@@ -26,6 +26,8 @@ import pickle
 import atexit
 import logging
 import zipfile
+import platform
+import resource
 import urllib.request
 from datetime import datetime
 
@@ -803,14 +805,12 @@ def health():
     Returns:
         dict: Health and status information for the MoviesThisDay app.
     """
-    import os
     # Memory usage (RSS in bytes)
     mem_bytes = None
     try:
-        import resource
+        # Use the already imported modules
         mem_bytes = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         # On Linux, ru_maxrss is in KB; on macOS, it's in bytes
-        import platform
         if platform.system() != "Darwin":  # Linux returns KB, macOS returns bytes
             mem_bytes = mem_bytes * 1024  # convert KB to bytes
     except Exception:
