@@ -1,5 +1,11 @@
 # MoviesThisDay Release Notes
 
+## v0.1.10 (2025-06-26)
+- Details page: Improved mobile/iPhone layout—poster image now appears directly below the movie title on small screens for better UX.
+- Removed `/corrections` endpoint and all related backend and test code for simplicity and security.
+- `/health` endpoint: Fixed memory usage reporting to be accurate on both macOS and Linux.
+- General code cleanup, improved maintainability, and updated documentation.
+
 ## v0.1.9 (2025-06-22)
 - About page: Added Chart.js line graph for movies by year, with trend-based forecasting for both the prior year and current year.
 - Forecast logic: Both last year and current year are now forecasted using the previous 5 years (excluding the year being forecasted), and plotted as red points on the graph.

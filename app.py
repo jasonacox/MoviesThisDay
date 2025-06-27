@@ -20,23 +20,23 @@ Author:
 import os
 import sys
 import re
-import json
 import time
 import base64
 import pickle
 import atexit
-import asyncio
 import logging
 import zipfile
+import platform
+import resource
 import urllib.request
 from datetime import datetime
 
 # Third-party imports
-from fastapi import FastAPI, HTTPException, Query, Request, Form, Body, status
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 
-VERSION = "0.1.9"
+VERSION = "0.1.10"
 
 # At startup, record the start time
 START_TIME = time.time()
@@ -111,18 +111,6 @@ logger.info(f"""\n
   Loaded {movie_count:,} movies into the database.
 =====================================================
 """)
-
-# Load environment variables
-CORRECTIONS_FILE = os.environ.get('CORRECTIONS_FILE', os.path.join(os.path.dirname(__file__), 'corrections.jsonl'))
-
-# Check if corrections file is writable at startup
-try:
-    with open(CORRECTIONS_FILE, 'a', encoding='utf-8') as f:
-        pass
-    CORRECTIONS_WRITABLE = True
-except Exception as e:
-    logger.error(f"Corrections file '{CORRECTIONS_FILE}' is not writable: {e}")
-    CORRECTIONS_WRITABLE = False
 
 def filter_movies(movies, current_year, today_date):
     """
@@ -620,43 +608,6 @@ async def details_movie(request: Request, imdb_id: str):
         "version": VERSION
     })
 
-@app.post("/corrections", response_class=PlainTextResponse)
-async def submit_correction(imdb_id: str = Form(...), correction: str = Form(...), user_agent: str = Form(None), movie_title: str = Form(None)):
-    """
-    Accept a correction for a movie and append it to corrections.jsonl (or configured file).
-    Returns Oops if file is not writable.
-    """
-    if not CORRECTIONS_WRITABLE:
-        await asyncio.sleep(1.0)
-        return PlainTextResponse("Oops! Something went wrong.", status_code=500)
-    # Limit correction payload size to prevent abuse
-    MAX_CORRECTION_LEN = 1000
-    MAX_TITLE_LEN = 300
-    MAX_IMDB_ID_LEN = 20
-    if (
-        len(correction) > MAX_CORRECTION_LEN or
-        (movie_title and len(movie_title) > MAX_TITLE_LEN) or
-        (imdb_id and len(imdb_id) > MAX_IMDB_ID_LEN)
-    ):
-        time.sleep(1.0)
-        return PlainTextResponse("Oops! Something went wrong.", status_code=413)
-    entry = {
-        "imdb_id": imdb_id,
-        "movie_title": movie_title or "",
-        "correction": correction,
-        "timestamp": datetime.now().isoformat(),
-        "user_agent": user_agent or ""
-    }
-    try:
-        with open(CORRECTIONS_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception as e:
-        logger.error(f"Could not write to corrections file: {e}")
-        time.sleep(1.0)
-        return PlainTextResponse("Oops! Something went wrong.", status_code=500)
-    time.sleep(1.0)  # Add a 1 second delay to mitigate rapid repeated requests
-    return "Correction received. Thank you!"
-
 @app.get("/movie/{imdb_id}")
 async def movie_json(imdb_id: str):
     """
@@ -854,12 +805,14 @@ def health():
     Returns:
         dict: Health and status information for the MoviesThisDay app.
     """
-    import os
     # Memory usage (RSS in bytes)
     mem_bytes = None
     try:
-        import resource
+        # Use the already imported modules
         mem_bytes = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # On Linux, ru_maxrss is in KB; on macOS, it's in bytes
+        if platform.system() != "Darwin":  # Linux returns KB, macOS returns bytes
+            mem_bytes = mem_bytes * 1024  # convert KB to bytes
     except Exception:
         mem_bytes = None
     # Only show these selected globals

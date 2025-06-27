@@ -69,6 +69,11 @@
   <div class="container" style="padding-top:80px;">
     <div class="movie-card d-flex flex-row">
       <div class="flex-grow-1" style="min-width:0;">
+        <div class="d-md-none mb-3">
+          {% if movie.omdb_poster %}
+            <img src="{{ movie.omdb_poster }}" alt="Poster" style="width:100%; max-width:320px; display:block; margin:0 auto 1.2rem auto; border-radius:8px; box-shadow:0 2px 12px rgba(30,41,59,0.10);">
+          {% endif %}
+        </div>
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="movie-title">{{ movie.title }} {% if movie.release_year %}({{ movie.release_year }}){% endif %}</div>
         </div>
