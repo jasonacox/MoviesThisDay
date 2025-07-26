@@ -12,9 +12,11 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+
 # Copy application code
 COPY app.py ./
 COPY templates/ ./templates/
+COPY static/ ./static/
 COPY logging.conf ./
 
 # Copy database archive (if missing, will be downloaded at runtime)

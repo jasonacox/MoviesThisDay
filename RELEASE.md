@@ -1,5 +1,14 @@
 # MoviesThisDay Release Notes
 
+## v0.1.12 (2025-07-26)
+- SEO: Added meta tags (description, keywords, Open Graph, Twitter Card) and JSON-LD structured data to homepage for improved search engine discoverability and rich previews.
+- Static assets: Added `static/` directory and now serve static files (including `og-image.png`) via FastAPI and Docker.
+- Docker: Dockerfile now copies the `static/` directory for static asset support in containers.
+- Favicon: Improved `gen_favicon.py` to write PNG output, prompt before overwrite, and document usage; favicon is now generated from `static/icon.png` and saved as `static/favicon.png`.
+- Accessibility: Improved all main templates (`index.html`, `details.html`, `search.html`) so that movie poster images use descriptive alt text and, if the poster fails to load, a local placeholder image is shown and the alt text updates to "No poster available" for accessibility and a better user experience.
+- Version bump to 0.1.12 in `app.py` and documentation.
+- General: Updated documentation, release notes, and ensured all new features and fixes are reflected in the codebase.
+
 ## v0.1.11 (2025-07-26)
 - Database build: TMDB new releases (discover API) are now loaded page by page, but the process stops as soon as a movie's popularity drops below the configured threshold. This optimizes API usage and ensures only popular new releases are included.
 - Improved build output: Phase headers now print with clear dividers, and all status messages are consistently formatted for readability.
