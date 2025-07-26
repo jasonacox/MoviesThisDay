@@ -4,8 +4,9 @@ This folder contains scripts to build an optimized movie database organized by r
 
 ## Trending & New Release Movies
 
-- The database build process now ensures that trending and newly released movies (from TMDB trending API) are always included in the main index, regardless of release date.
+- The database build process ensures that trending and newly released movies (from TMDB trending API) are always included in the main index, regardless of release date.
 - All correction and update logic (from `updates.jsonl`) is applied before export, so new/corrected movies are always visible after a rebuild.
+- **As of July 2025:** The build script fetches all pages of new releases from TMDB, but will stop loading further pages as soon as a movie's popularity drops below the configured threshold (default: 10). This optimizes API usage and ensures only popular new releases are included.
 
 ## Create
 
@@ -20,6 +21,11 @@ Note: The build script will only query for movies that meet criteria defined by 
 ```bash
 python build_db.py
 ```
+
+### How TMDB Trending and New Releases Are Loaded
+
+- **Trending movies** (from the TMDB trending API) are always loaded in full (single page).
+- **New releases** (from the TMDB discover API) are loaded page by page, but the process will stop as soon as a movie's popularity drops below the threshold. This ensures only popular new releases are included and avoids unnecessary API calls.
 
 ## Corrections & Updates
 

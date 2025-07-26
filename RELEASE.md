@@ -1,5 +1,13 @@
 # MoviesThisDay Release Notes
 
+## v0.1.11 (2025-07-26)
+- Database build: TMDB new releases (discover API) are now loaded page by page, but the process stops as soon as a movie's popularity drops below the configured threshold. This optimizes API usage and ensures only popular new releases are included.
+- Improved build output: Phase headers now print with clear dividers, and all status messages are consistently formatted for readability.
+- Trending and new release movies are always included in the main index, regardless of release date.
+- Homepage date navigation: Improved date handling and navigation logic for the date picker and navigation buttons. The calendar now always uses the user's local date, and navigation between days/months is robust to month/year overflow. The client_date parameter is always set and updated automatically for timezone consistency.
+- Documentation updated to reflect new build logic, API optimizations, and UI date handling.
+- Minor code cleanup and maintainability improvements.
+
 ## v0.1.10 (2025-06-26)
 - Details page: Improved mobile/iPhone layout—poster image now appears directly below the movie title on small screens for better UX.
 - Removed `/corrections` endpoint and all related backend and test code for simplicity and security.

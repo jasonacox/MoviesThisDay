@@ -205,28 +205,8 @@
         function changeDay(delta) {
             const input = document.getElementById('dateInput');
             let date = getCurrentDisplayDate();
-            // Break down the date into components
-            let day = date.getDate() + delta;
-            let m = date.getMonth();
-            let y = date.getFullYear();
-            console.log(`Changing day: ${date.toISOString()} by ${delta} days`);
-            console.log(`--- Current date: ${y}-${m + 1}-${day}`);
-            // Handle month/year overflow
-            if (day < 1) {
-                m--;
-                if (m < 0) { m = 11; y--; }
-                day = new Date(y, m + 1, 0).getDate(); // Get last day of previous month                
-            } else {
-                const lastDay = new Date(y, m, 0).getDate();
-                if (day > lastDay) {
-                    day = 1; // Reset to first day of next month
-                    m++;
-                    if (m > 11) { m = 0; y++; }
-                }
-            }
-            // Set the new date
-            console.log(`--- New date: ${y}-${m + 1}-${day}`);
-            date.setFullYear(y, m, day);
+            // Add delta days using setDate (handles month/year overflow correctly)
+            date.setDate(date.getDate() + delta);
             input.value = date.toISOString().slice(0, 10);
             goToDate();
         }
