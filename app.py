@@ -31,12 +31,20 @@ import resource
 import urllib.request
 from datetime import datetime
 
+
 # Third-party imports
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    FileResponse,
+)
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-VERSION = "0.1.11"
+VERSION = "0.1.12"
 
 # At startup, record the start time
 START_TIME = time.time()
@@ -45,8 +53,14 @@ START_TIME = time.time()
 POPULARITY_THRESHOLD = 10  # Only show movies with popularity above this value
 AGE_LIMIT = 100  # Only show movies released within this many years
 
+
 # Initialize FastAPI app
 app = FastAPI()
+
+# Mount static directory for serving og-image.png and other static assets
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Set up Jinja2 templates
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
@@ -792,12 +806,33 @@ async def movie_json(imdb_id: str):
 @app.get("/robots.txt", response_class=PlainTextResponse)
 async def robots_txt():
     """
-    Serve a robots.txt file that allows all crawling except for /docs.
+    Serve robots.txt from static/robots.txt if it exists, else fall back to default content.
     """
+    robots_path = os.path.join(STATIC_DIR, "robots.txt")
+    if os.path.isfile(robots_path):
+        # Use FileResponse for consistent static file serving
+        return FileResponse(robots_path, media_type="text/plain")
+    # Fallback default
     return PlainTextResponse("User-agent: *\nDisallow: /docs\n")
 
 
-favicon_base64 = "data:image/png;base64,/9j/4QDKRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAIdpAAQAAAABAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABAAeQAAAHAAAABDAyMjGRAQAHAAAABAECAwCgAAAHAAAABDAxMDCgAQADAAAAAQABAACgAgAEAAAAAQAAABCgAwAEAAAAAQAAABCkBgADAAAAAQAAAAAAAAAAAAD/2wCEAAEBAQEBAQIBAQIDAgICAwQDAwMDBAUEBAQEBAUGBQUFBQUFBgYGBgYGBgYHBwcHBwcICAgICAkJCQkJCQkJCQkBAQEBAgICBAICBAkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCf/dAAQAAf/AABEIABAAEAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP6nfiL+1j8PfhZ+0N4V/Z68ZRS2tz4vtmlstQZ0Fss3mGOO3cHDBpWGEb7u4he9W/g5+1J4C+OPxU8a/DHwPDLKPBLwRT35ZDb3MkrSRuIQPmxG8TIWOASOOK4X47/sk6L+0D8RbzxD4vvEj0m68Ky6EkcaH7Vb3hu0uoL2Fz8gMBT5Rjk8Hit/4E/sz6J8A/iBq+teD3hi0O70LR9GtLRVPnIdM88yTSueHaYzbieuc5r90xFDgn/V/npyl9e9lHTXk5/aRvL/ABezbjyfAuVyvdpH5LTqcV/20oSjH6n7R66c/J7N2W+3PZ83xa8vLZcx/9k="
+# Serve sitemap.xml from static/ if present
+@app.get("/sitemap.xml", response_class=Response)
+async def sitemap_xml():
+    """
+    Serve sitemap.xml from static/sitemap.xml if it exists, else return 404.
+    """
+    sitemap_path = os.path.join(STATIC_DIR, "sitemap.xml")
+    if os.path.isfile(sitemap_path):
+        return FileResponse(sitemap_path, media_type="application/xml")
+    return Response(
+        content="<error>Not found</error>",
+        status_code=404,
+        media_type="application/xml",
+    )
+
+
+favicon_base64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGi0lEQVR4nMWXWWxdVxWGv7XPuaPHTK5M6yStCXHSNCgTRZCHShUxJAgk6AODUBSmQkVChSqIBC2UqgIJEBEqSlWpAl5AVAgF1Jq8IErlloLTkhRnqGPFdpo0dux49vW995y9Fw/n3Os7OMNDEPvlnrvP3uv/z1r/WnttCUKn/B+Hv9ykU0VvMy0RMCI3J+CckkyY24sej2Lo6khUEVCFZMJw7p153hicBQVjpOwNBZwCKiCU58s2o2mMEUw8b+M1W9c3smVdA4FVKimUCThVkr7h6IvDPPXbQQohqAoiElmOrQsSWZbSuxJ46bnEKtqlqohAwhcOP7SOgx/vIAhdea8EodMS+OmROR78zmskfJ9kIoExQmAV30QEIi5LpCIbMVKZyNKjdYrvGZxzBNZSCBzHn9zO1vWN5XCYkusB3hiYJl+0ZFIeR79xLz1P7eTQJ9YxsxAADusUZx3WOqxzWKvxb/w/fkaVmYWAR/bexYtPbOWXX+8ikzQUQ8vJoTkqMas0EFqLdY6kL+ze0ko25XH/xpayG9UppQgKoKKgcViWlBQDKLs2NPHe9gwdq9OkEwbrHKF1lZA1IgQEJV8Meemf46y9I8Mr/ZNY5yiGkTtFBEEQs6QJkUicESkhjD3x6plpUgnDyHieXDHE1GdhNYHSe2sth46ewjOGfKBs62zhZ1/dTEPaI+EJmZRHrmBRLelRyCQNi8UoTLmC47Hnz3HkT8M8e/wi1inpOLW1psAsQyBaEIQO9YT5XJEH7lvBts6maN4qw2N5NrwnU2Vo8Moi6+/I4MclZPfmVl49M4XnJbDqSCcj67V1oKriSJQ3KPCDL2ziN49t40D3WmZyQXnNX09Osu+JN5maD7EOrINrcyH7vv9vevunyutmFkL2P3gnv/rmFp787Ib4u7T8gct6AKJKmE35HNizloa0IQgdr/RfY27R8uUj/QyNLQKOh54+ie8JClirqDoO/3qAzvYGnju4GSOwd8dq9mxfxWLRcbRnmPEZVwtXS0ARUYqB5dSFGTbc2cDpkVka0oYzFxc49tooa1qTGDH0j8zFqaSICKmkx6WJPCeH5nj0k+toynqcvTTPBze1MnglRz6wUSbpjQjESg7CkAM/PUFDOsHQ6DyPf34j84shH9rUyi8euZdi6PBqJG0dpHzh4LNnmVsMacp4PP37QV7ovcJCPoyq362EAFWMwOjkIkqeuVwRYyI3N6QN961vrNtSObIpQ2gdxsD0fIHBdx0CrGxOgN4kC+LjBueUr+y9h441GY73jZJbDBGB0EbvCqHW5bTTyAMl8HzBsmd7Gx/d0cbla3n+0HsZ5SYaEMA6Rybl8b3PddHa6HPX6jRvXZjGM1H8tEy0vqqU3nlGyBUsX/pIB5/e3c5cLqSnb5TxGVe3q16EKNY6JmaLtDb6TM0VYmJK0hc8I2SS3jLOj0YqYbAuYjo5H6Xv+GxAYC2CUtuT1JdigUIx4Is/eZ0VTSlOXZji4X330JT1Gbg8z8unJuqP4bgkqirnL8/TnPVJJYUfv/A2PX1jTC8UKRTDOvAKAiVhKKjiGXjz/CROIV8MyRcdOze08LFdbXzrudOkE4ZyJxkfyUaEQujo3tHG9s5m/vyPdxm5usDYdB4jsKYlGR1qN8wCjdLEOkf3znbaWtP869wE1jp8TzjytS3XdX3tcE55/92t3L9xBVdnCpw4P0ltClYQkLI3nbWkEx7PHNpJ+8oUx3ov8aPfnWF/dycJ3+AZqkNQyT8GDkLH394a57uf2cinPtzO2FSBB779dybsdUVY0fTFxaJUaLJpj/8MTdF9+GU8Y2L9y1ILFodApKQhwTlldHKRpkxk3vNMZFdvkoahcxiBfKHIo8/0saolxdvvzNKS9QmCgIJKBWBNJ8oSIc9Ac9bj538c4C99VxifyZPLB3gGnLtBQ5JKeHElVHpev4jVaC6T9mOvVAKVaoHGZJaaUXWQ8IQTAxP0nr6KZ2BFY1QJk351y+9DdEYrsKtrDdmUoVAMWdWcAARH3O1UNZ5L4IjEyq5oTiUKZWPGpzkbPecKlnTSsON9K8vpDnFXDBVt+bGzPP78CQphCURQESBqx5Z2VteCqr5wGY1mUh4/3L+Vh/d1Vl1QpPJuqKokfMOZ4Wn6zo3jnCLGLFmtENyyKMsM5xTPEz7QtZqujiaCsLoaSu3l9H96NQscpuYUqyMAUTicu9VvpCyHGy4xt3g5hWihuf55c1vHfwFaOyEWvVYZsAAAAABJRU5ErkJggg=="
 
 
 @app.get("/favicon.ico")

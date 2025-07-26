@@ -462,7 +462,7 @@
       let card = document.createElement('div');
       card.className = 'movie-hover-card';
       card.id = 'movie-hover-card';
-      let poster = movie.omdb_poster ? `<img class='hover-poster' src='${movie.omdb_poster}' alt='Poster'>` : '';
+      let poster = movie.omdb_poster ? `<img class='hover-poster' src='${movie.omdb_poster}' alt='Movie Poster for ${movie.title ? movie.title.replace(/"/g, '&quot;') : 'movie'}' onerror="this.onerror=null;this.src='/static/placeholder-poster.png';this.alt='No poster available';">` : '';
       let title = `<div class='hover-title'>${movie.title || ''}`;
       if (movie.is_new_release) {
         title += ` <span class='badge bg-success ms-2' style='font-size:0.85em;'>New Release</span>`;

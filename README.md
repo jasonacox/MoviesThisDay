@@ -6,6 +6,8 @@ A modern FastAPI web application and API for exploring movies released on this d
 
 Website: [moviesthisday.com](https://moviesthisday.com)
 
+<img width="256" alt="image" src="https://github.com/user-attachments/assets/a656236c-f975-4b4b-a351-030e367b29de" />
+
 ## Features
 - FastAPI backend serving both HTML (Bootstrap-styled) and JSON endpoints
 - Browse movies by date, search by title, IMDb ID, release date, year, genre, studio, and runtime
@@ -138,3 +140,4 @@ Claude will call the MoviesThisDay tool and display a summary of movies released
 - Author: Jason A. Cox
 - Project: [MoviesThisDay on GitHub](https://github.com/jasonacox/MoviesThisDay)
 - License: MIT
+- Vibe Coded (Read the [Story](https://www.jasonacox.com/wordpress/archives/2330))
