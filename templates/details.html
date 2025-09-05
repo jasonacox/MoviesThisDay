@@ -162,7 +162,7 @@
         {% endif %}
         <div style="margin-top:18px; text-align:center; font-size:1em; color:#222;">
           <div style="font-size:1.05em; color:#22223b; font-weight:600;">Length</div>
-          <div><span style="font-weight:600; color:#2563eb;"></span> {% if movie.runtime %}{{ movie.runtime }} min{% else %}-{% endif %}</div><br>
+          <div><span style="font-weight:600; color:#2563eb;"></span> {% if movie.runtime %}{{ movie.runtime }} min{% else %}N/A{% endif %}</div><br>
           <div style="font-size:1.05em; color:#22223b; font-weight:600;">Box Office</div>
           <div><span style="font-weight:600; color:#2563eb;"></span> {{ movie.omdb_box_office or '-' }}</div>
         </div>
@@ -171,7 +171,9 @@
     </div>
   </div>
   <div class="footer text-center" style="font-size:0.95rem;">
-    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
+    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> |
+    Version: {{ version }} |
+  Build: {{ database_generated_at[:10] if database_generated_at }}
   </div>
 </body>
 </html>

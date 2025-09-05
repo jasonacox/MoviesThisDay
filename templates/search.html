@@ -242,7 +242,9 @@
     </div>
   </div>
   <div class="footer text-center" style="font-size:0.95rem;">
-    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
+    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> |
+    Version: {{ version }} |
+    Build: {{ database_generated_at[:10] if database_generated_at }}
   </div>
   <style>
     .movie-hover-card {

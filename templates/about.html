@@ -372,7 +372,9 @@
     </div>
   </div>
   <div class="footer text-center" style="font-size:0.95rem;">
-    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
+    Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> |
+    Version: {{ version }} |
+  Build: {{ database_generated_at[:10] if database_generated_at }}
   </div>
   <!-- Add Chart.js datalabels plugin CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>

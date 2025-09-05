@@ -530,15 +530,25 @@
                                     {% else %}-{% endif %}
                                 </td>
                                 <td>{{ movie.release_year }}</td>
-                                <td>{% if movie.runtime %}{{ movie.runtime }} min{% else %}-{% endif %}</td>
+                                <td>{% if movie.runtime %}{{ movie.runtime }} min{% else %}N/A{% endif %}</td>
                                 <td>
                                     {% set pop = movie.popularity|float(0) %}
-                                    {% set pop_pct = (pop / popularity_max * 50) if popularity_max and popularity_max > 0 else (pop if pop < 100 else 100) %}
-                                    {% if pop_pct > 100 %}{% set pop_pct = 100 %}{% endif %}
-                                    <div style="background:#e0e7ef; border-radius:6px; height:18px; width:100px; position:relative;">
-                                        <div style="background:linear-gradient(90deg,#2563eb,#60a5fa); height:100%; border-radius:6px; width:{{ pop_pct|round(0,'floor') }}%; transition:width 0.3s;"></div>
-                                        <span style="position:absolute; left:8px; top:0; font-size:0.95em; color:#222; line-height:18px; font-weight:500;">{{ pop|round(0,'floor') }}</span>
-                                    </div>
+                                    {% if pop >= 1000 %}
+                                        {% set pop_green = pop - 1000 %}
+                                        {% set pop_pct = (pop_green / popularity_max * 50) if popularity_max and popularity_max > 0 else (pop_green if pop_green < 100 else 100) %}
+                                        {% if pop_pct > 100 %}{% set pop_pct = 100 %}{% endif %}
+                                        <div style="background:#e0e7ef; border-radius:6px; height:18px; width:100px; position:relative;">
+                                            <div style="background:linear-gradient(90deg,#028b34,#4ade80); height:100%; border-radius:6px; width:{{ pop_pct|round(0,'floor') }}%; transition:width 0.3s;"></div>
+                                            <span style="position:absolute; left:8px; top:0; font-size:0.95em; color:#222; line-height:18px; font-weight:500;">{{ pop_green|round(0,'floor') }}</span>
+                                        </div>
+                                    {% else %}
+                                        {% set pop_pct = (pop / popularity_max * 50) if popularity_max and popularity_max > 0 else (pop if pop < 100 else 100) %}
+                                        {% if pop_pct > 100 %}{% set pop_pct = 100 %}{% endif %}
+                                        <div style="background:#e0e7ef; border-radius:6px; height:18px; width:100px; position:relative;">
+                                            <div style="background:linear-gradient(90deg,#2563eb,#60a5fa); height:100%; border-radius:6px; width:{{ pop_pct|round(0,'floor') }}%; transition:width 0.3s;"></div>
+                                            <span style="position:absolute; left:8px; top:0; font-size:0.95em; color:#222; line-height:18px; font-weight:500;">{{ pop|round(0,'floor') }}</span>
+                                        </div>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if movie.imdb_id %}
@@ -557,7 +567,9 @@
         </div>
     </div>
     <div class="footer text-center" style="font-size:0.95rem;">
-        Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> | Version: {{ version }}
+        Powered by <a href="https://github.com/jasonacox/MoviesThisDay" target="_blank">MoviesThisDay</a> |
+        Version: {{ version }} |
+        Build: {{ database_generated_at[:10] if database_generated_at }}
     </div>
 </body>
 </html>

@@ -1,5 +1,18 @@
 # MoviesThisDay Release Notes
 
+## v0.1.13 (2025-09-01)
+- Database build date ("Build") is now displayed in the footer of all main pages (About, Index, Search, Details) for improved transparency.
+- The About page Movie Database Statistics section now includes the build date as a list item above the stats.
+- Backend: All relevant routes now pass the database build date to templates for consistent rendering.
+- UI/UX: Footer and statistics sections updated for brevity and clarity ("Build" instead of "Database generated at").
+- Minor template and code cleanup for maintainability.
+- Version bump to 0.1.13 in app.py and documentation.
+- build_db.py: Robust OMDb cache loading—malformed JSON lines are now skipped and logged, preventing crashes and improving reliability.
+- build_db.py: Fixed release date parsing (avoids TypeError by ensuring string/date comparison is correct).
+- build_db.py: Improved popularity handling—type conversion and fallback for invalid data.
+- build_db.py: OMDb enrichment only for movies above popularity threshold; recent movies (released within last year) are skipped from cache loading.
+- build_db.py: Enhanced status/error logging for OMDb cache and enrichment steps.
+
 ## v0.1.12 (2025-07-26)
 - SEO: Added meta tags (description, keywords, Open Graph, Twitter Card) and JSON-LD structured data to homepage for improved search engine discoverability and rich previews.
 - Static assets: Added `static/` directory and now serve static files (including `og-image.png`) via FastAPI and Docker.

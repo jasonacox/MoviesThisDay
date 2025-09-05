@@ -192,7 +192,12 @@ else:
                         )
                     else:
                         trending_output["overview"] = ""
-                    trending_output["popularity"] = movie.get("popularity", 0.0)
+                    trending_popularity = movie.get("popularity", 0.0)
+                    if trending_popularity < POPULARITY_THRESHOLD:
+                        # Since these are trending we are going to bump them up but somehow keep
+                        # a rank by dividing its popularity by POPULARITY_THRESHOLD and adding 10
+                        trending_popularity = ( trending_popularity / POPULARITY_THRESHOLD ) + 10
+                    trending_output["popularity"] = trending_popularity
                     trending_output["poster_path"] = resp2.json().get("poster_path")
                     trending_output["tagline"] = resp2.json().get("tagline", "")
                     # Convert genre_ids to genre names
@@ -224,9 +229,16 @@ else:
                         resp2.json().get("keywords", {}).get("keywords", [])
                     )
                     trending_movies.append(trending_output.copy())
-                    status(
-                        f"Added: {trending_output['title']} (ID: {trending_output['imdb_id']})"
-                    )
+                    # If title begins with TRON highlight in yellow
+                    if trending_output['title'].startswith("TRON"):
+                        status(
+                            f"Added: {trending_output['title']} (ID: {trending_output['imdb_id']})",
+                            Fore.YELLOW
+                        )
+                    else:
+                        status(
+                            f"Added: {trending_output['title']} (ID: {trending_output['imdb_id']})"
+                        )
             else:
                 status(
                     f"[ERROR] TMDB API request failed with status code {response.status_code}: {response.text}",
@@ -235,12 +247,13 @@ else:
                 continue
         except requests.exceptions.RequestException as e:
             status(f"[ERROR] Error fetching TMDB trending movies: {e}", Fore.RED)
+
     # Fetch all pages for current year movies
     page = 1
-    stop_due_to_popularity = False
-    while not stop_due_to_popularity:
-        tmdb_current_year = f"https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=en-US&page={page}&primary_release_date.gte={TMDB_SNAPSHOT}&sort_by=popularity.desc&with_runtime.gte=20"
-        status(f"Fetching TMDB movies... via {tmdb_current_year}")
+    while True:
+        popularity = 0.0
+        tmdb_current_year = f"https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=en-US&page={page}&release_date.gte={TMDB_SNAPSHOT}&sort_by=release_date&with_runtime.gte=20"
+        status(f"TMDB: Fetching page {page} of movies with release date >= {TMDB_SNAPSHOT}...", Fore.GREEN)
         try:
             headers = {
                 "accept": "application/json",
@@ -260,12 +273,24 @@ else:
                     except (ValueError, TypeError):
                         popularity = 0.0
                     if popularity < POPULARITY_THRESHOLD:
-                        stop_due_to_popularity = True
-                        status(
-                            f"Stopped loading further pages: movie '{movie.get('title','?')}' has popularity {popularity} < threshold {POPULARITY_THRESHOLD}",
-                            Fore.YELLOW,
-                        )
-                        break
+                        # Check to see if upcoming / unreleased and if so artificially boost popularity
+                        release_date_str = movie.get("release_date")
+                        is_upcoming = False
+                        if release_date_str:
+                            try:
+                                release_date_dt = datetime.strptime(release_date_str, "%Y-%m-%d").date()
+                                is_upcoming = release_date_dt > datetime.now().date()
+                            except Exception:
+                                is_upcoming = False
+                        if is_upcoming and popularity > (POPULARITY_THRESHOLD / 2):
+                            status(
+                                f"Upcoming movie '{movie.get('title','?')}' has popularity {popularity} - updating to {popularity + 5}",
+                                Fore.YELLOW,
+                            )
+                            popularity = popularity + 5
+                        else:
+                            # Skip it
+                            continue
                     trending_output = {}
                     # look up imdb for movie
                     id_movie = movie.get("id")
@@ -311,7 +336,7 @@ else:
                         )
                     else:
                         trending_output["overview"] = ""
-                    trending_output["popularity"] = movie.get("popularity", 0.0)
+                    trending_output["popularity"] = popularity
                     trending_output["poster_path"] = resp2.json().get("poster_path")
                     trending_output["tagline"] = resp2.json().get("tagline", "")
                     # Convert genre_ids to genre names
@@ -347,7 +372,7 @@ else:
                         f"Added: {trending_output['title']} (ID: {trending_output['imdb_id']})"
                     )
                 total_pages = data.get("total_pages", 1)
-                if stop_due_to_popularity or page >= total_pages:
+                if page >= total_pages:
                     break
                 page += 1
             else:
@@ -422,7 +447,7 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
             hour=0, minute=0, second=0, microsecond=0
         ) - timedelta(days=365)
         with open(OMDB_RAW, "r", encoding="utf-8") as raw_file:
-            for line in raw_file:
+            for line_num, line in enumerate(raw_file, 1):
                 try:
                     data = json.loads(line)
                     imdb_id = data.get("imdbID")
@@ -438,8 +463,10 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                             pass  # If date can't be parsed, fall through and cache
                     if imdb_id:
                         omdb_cache[imdb_id] = data
-                except Exception:
-                    pass
+                except json.JSONDecodeError as e:
+                    status(f"[OMDb Cache] Skipping malformed JSON on line {line_num}: {e} - {line}", Fore.RED)
+                except Exception as e:
+                    status(f"[OMDb Cache] Unexpected error on line {line_num}: {e} - {line}", Fore.RED)
         status(
             f"Loaded {len(omdb_cache)} OMDb entries from cache, skipped {skip_count} recent movies.",
             Fore.YELLOW,
@@ -458,24 +485,52 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
     for row in reader:
         row_count += 1
         movie_id = row["id"]
+        # check for Lookout
+        #if row["title"].startswith("Lookout"):
+        #    print(row)
+        #    input(f"Found Lookout movie: {row['title']} (ID: {movie_id})")
         # If we've already inserted this movie id, update popularity in the index and continue
         if movie_id in seen_ids:
             # print(f"Movie ID {movie_id} already seen, updating popularity... {row['title']}")
             # print(row)
-            # Search index for this movie id and update popularity, vote_average, vote_count, and title
+            # Search index for this movie id and update all the data:
+            # "id","title","vote_average","vote_count","status","release_date","revenue","runtime","adult","backdrop_path","budget","homepage","imdb_id","original_language","original_title","overview","popularity","poster_path","tagline","genres","production_companies","production_countries","spoken_languages","keywords"
+
             for movies_list in index.values():
                 for mov in movies_list:
                     if mov["id"] == movie_id:
-                        mov["popularity"] = row["popularity"]
-                        mov["vote_average"] = row["vote_average"]
-                        mov["vote_count"] = row["vote_count"]
-                        mov["title"] = row["title"]
+                        mov.update({
+                            "popularity": row["popularity"],
+                            "vote_average": row["vote_average"],
+                            "vote_count": row["vote_count"],
+                            "title": row["title"],
+                            "release_date": row["release_date"],
+                            "status": row["status"],
+                            "revenue": row["revenue"],
+                            "runtime": row["runtime"],
+                            "budget": row["budget"],
+                            "adult": row["adult"],
+                            "backdrop_path": row["backdrop_path"],
+                            "homepage": row["homepage"],
+                            "imdb_id": row["imdb_id"],
+                            "original_language": row["original_language"],
+                            "original_title": row["original_title"],
+                            "overview": row["overview"],
+                            "poster_path": row["poster_path"],
+                            "tagline": row["tagline"],
+                            "genres": row["genres"],
+                            "production_companies": row["production_companies"],
+                            "production_countries": row["production_countries"],
+                            "spoken_languages": row["spoken_languages"],
+                            "keywords": row["keywords"],
+                        })
+                        # status(f"Updated movie {mov['title']} (ID: {movie_id}) with new popularity {mov['popularity']} release date {mov['release_date']}", Fore.MAGENTA)
                         # print(f"^^ Updated movie {mov['title']} (ID: {movie_id}) with new popularity {mov['popularity']}")
                         break
             continue
         # Check if the movie meets our criteria
         is_non_adult = row["adult"].lower() in ADULT
-        is_target_language = row["original_language"] in LANGUAGES
+        is_target_language = row["original_language"] in LANGUAGES 
 
         # Convert runtime to integer, with 0 as default for empty values
         try:
@@ -483,7 +538,7 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
         except ValueError:
             runtime = 0
 
-        is_long_enough = runtime >= RUNTIME
+        is_long_enough = runtime >= RUNTIME or runtime == 0  # allow 0 (unknown) runtimes
 
         # Convert popularity to float for min/max
         try:
@@ -527,6 +582,11 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
         #     "Response": "True"
         # }
 
+        # Check for Lookout
+        #if row["title"].lower().startswith("Lookout"):
+        #    print(row)
+        #    input(f"Found Lookout movie: {row['title']} (ID: {movie_id})")
+
         # Only check OMDb for valid movies
         if is_non_adult and is_target_language and is_long_enough:
             if DEBUG:
@@ -541,6 +601,7 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                 if imdb_id in omdb_cache:
                     omdb_json = omdb_cache[imdb_id]
                 elif popularity >= POPULARITY_THRESHOLD:
+                    # Fetch from OMDb API with retries for popular movies
                     for attempt in range(3):
                         try:
                             omdb_resp = omdb_session.get(
@@ -550,10 +611,13 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                             if omdb_resp.status_code == 200:
                                 omdb_json = omdb_resp.json()
                                 # write raw OMDb data to file and update cache
-                                with open(OMDB_RAW, "a", encoding="utf-8") as raw_file:
-                                    raw_file.write(
-                                        json.dumps(omdb_json, ensure_ascii=False) + "\n"
-                                    )
+                                try:
+                                    with open(OMDB_RAW, "a", encoding="utf-8") as raw_file:
+                                        raw_file.write(
+                                            json.dumps(omdb_json, ensure_ascii=False) + "\n"
+                                        )
+                                except Exception as e:
+                                    status(f"Error writing OMDb data to file: {e}", Fore.RED)
                                 omdb_cache[imdb_id] = omdb_json
                                 break
                             else:
@@ -587,17 +651,17 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                     # Save the OMDb data to the row
                     row["omdb_title"] = omdb_json.get("Title")
                     row["omdb_released"] = omdb_json.get("Released")
-                    row["omdb_genre"] = omdb_json.get("Genre")
+                    row["omdb_genre"] = omdb_json.get("Genre") or row.get("genre", "")
                     row["omdb_director"] = omdb_json.get("Director")
                     row["omdb_actors"] = omdb_json.get("Actors")
-                    row["omdb_plot"] = omdb_json.get("Plot")
-                    row["omdb_language"] = omdb_json.get("Language")
-                    row["omdb_country"] = omdb_json.get("Country")
+                    row["omdb_plot"] = omdb_json.get("Plot") or row.get("overview", "")
+                    row["omdb_language"] = omdb_json.get("Language") or row.get("original_language", "")
+                    row["omdb_country"] = omdb_json.get("Country") or row.get("production_countries", "")
                     row["omdb_awards"] = omdb_json.get("Awards")
                     row["omdb_imdb_rating"] = omdb_json.get("imdbRating")
                     row["omdb_imdb_votes"] = omdb_json.get("imdbVotes")
-                    row["omdb_box_office"] = omdb_json.get("BoxOffice")
-                    row["omdb_poster"] = omdb_json.get("Poster")
+                    row["omdb_box_office"] = omdb_json.get("BoxOffice") or row.get("revenue")
+                    row["omdb_poster"] = omdb_json.get("Poster") or row.get("poster_path")
                     row["omdb_rated"] = omdb_json.get("Rated")
         # Track min/max popularity
         if is_non_adult and is_target_language and is_long_enough:

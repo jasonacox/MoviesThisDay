@@ -44,7 +44,7 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
-VERSION = "0.1.12"
+VERSION = "0.1.13"
 
 # At startup, record the start time
 START_TIME = time.time()
@@ -112,6 +112,7 @@ try:
         db = pickle.load(pklfile)
         movies_by_day_metadata = db.get("metadata", {})
         movies_by_day_index = db.get("index", {})
+        database_generated_at = movies_by_day_metadata.get("generated_at", "N/A")
 except Exception as e:
     logger.fatal(f"Could not load movies_by_day.pkl: {e}")
     sys.exit(1)
@@ -126,6 +127,7 @@ logger.info(
   Project: https://github.com/jasonacox/MoviesToday
   Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
   Loaded {movie_count:,} movies into the database.
+  Database version: {database_generated_at}
 =====================================================
 """
 )
@@ -215,7 +217,14 @@ async def index(
     movies = filter_movies(movies_by_day_index.get(mm_dd, []), current_year, today_date)
     # Annotate movies with is_new_release
     for m in movies:
-        m["is_new_release"] = is_new_release(m, today_date)
+        if is_new_release(m, today_date):
+            m["is_new_release"] = True
+            if float(m.get("popularity", 0)) < 1000:
+                m["popularity"] = float(m.get("popularity", 0)) + 1000
+        else:
+            m["is_new_release"] = False
+            if float(m.get("popularity", 0)) > 1000:
+                m["popularity"] = float(m.get("popularity", 0)) - 1000
     # Sorting logic
     if sort == "name":
         movies.sort(key=lambda m: m.get("title", "").lower())
@@ -237,6 +246,7 @@ async def index(
             or 100,
             "current_date_str": current_date_str,
             "version": VERSION,
+            "database_generated_at": database_generated_at,
             "client_date": client_dt.strftime("%Y-%m-%d"),
             "display_date": display_date,
             "current_date": client_dt.strftime("%Y-%m-%d"),
@@ -278,6 +288,7 @@ async def search_page(request: Request):
             "popularity_max": movies_by_day_metadata.get("avg_popularity_over_10", 100)
             or 100,
             "version": VERSION,
+            "database_generated_at": database_generated_at,
         },
     )
 
@@ -746,6 +757,7 @@ async def about(request: Request):
             "current_year": datetime.now().year,
             "version": VERSION,
             "movie_count": movie_count,
+            "database_generated_at": database_generated_at,
         },
     )
 
@@ -753,11 +765,15 @@ async def about(request: Request):
 @app.get("/version")
 async def version():
     """
-    Return the current MoviesThisDay app version as JSON.
+    Return the current MoviesThisDay app version as JSON and the current
+    database built ISO date (generated_at)
     Returns:
-        dict: Version string.
+        dict: Version string and generated_at date.
     """
-    return {"version": VERSION}
+    return {
+        "version": VERSION,
+        "database_generated_at": database_generated_at,
+    }
 
 
 @app.get("/details/{imdb_id}", response_class=HTMLResponse)
@@ -783,7 +799,12 @@ async def details_movie(request: Request, imdb_id: str):
     return templates.TemplateResponse(
         request,
         "details.html",
-        {"request": request, "movie": movie, "version": VERSION},
+        {
+            "request": request,
+            "movie": movie,
+            "version": VERSION,
+            "database_generated_at": database_generated_at,
+        },
     )
 
 
