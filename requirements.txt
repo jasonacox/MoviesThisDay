@@ -7,3 +7,4 @@ pytest
 requests
 colorama
 python-multipart
+python-dotenv
