@@ -131,7 +131,8 @@
         <div style="margin-top:18px; text-align:center;">
           <div style="font-size:1.05em; color:#22223b; font-weight:600;">IMDb Rating</div>
           <div style="display:flex; align-items:center; justify-content:center; gap:2px; margin-top:4px;">
-            {% set rating = movie.omdb_imdb_rating.split('/')[0] if '/' in movie.omdb_imdb_rating else movie.omdb_imdb_rating %}
+            {% set rating_str = movie.omdb_imdb_rating|string %}
+            {% set rating = rating_str.split('/')[0] if '/' in rating_str else rating_str %}
             {% set rating_val = rating|float %}
             {% for i in range(1, 11) %}
               {% if i <= rating_val|int %}

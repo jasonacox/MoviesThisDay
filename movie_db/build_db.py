@@ -496,15 +496,18 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
             # Search index for this movie id and update all the data:
             # "id","title","vote_average","vote_count","status","release_date","revenue","runtime","adult","backdrop_path","budget","homepage","imdb_id","original_language","original_title","overview","popularity","poster_path","tagline","genres","production_companies","production_countries","spoken_languages","keywords"
 
-            for movies_list in index.values():
+            for day_key, movies_list in index.items():
                 for mov in movies_list:
                     if mov["id"] == movie_id:
+                        old_release_date = mov.get("release_date")
+                        new_release_date = row["release_date"]
                         mov.update({
                             "popularity": row["popularity"],
                             "vote_average": row["vote_average"],
                             "vote_count": row["vote_count"],
                             "title": row["title"],
-                            "release_date": row["release_date"],
+                            "release_date": new_release_date,
+                            "release_year": new_release_date.split("-")[0] if new_release_date else None,
                             "status": row["status"],
                             "revenue": row["revenue"],
                             "runtime": row["runtime"],
@@ -524,8 +527,15 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                             "spoken_languages": row["spoken_languages"],
                             "keywords": row["keywords"],
                         })
-                        # status(f"Updated movie {mov['title']} (ID: {movie_id}) with new popularity {mov['popularity']} release date {mov['release_date']}", Fore.MAGENTA)
-                        # print(f"^^ Updated movie {mov['title']} (ID: {movie_id}) with new popularity {mov['popularity']}")
+                        # If release_date changed, move movie to the new MM_DD bucket
+                        if new_release_date and new_release_date != old_release_date:
+                            if len(new_release_date.split("-")) == 3:
+                                new_mm_dd = f"{new_release_date.split('-')[1]}_{new_release_date.split('-')[2]}"
+                                if new_mm_dd != day_key:
+                                    # Remove from current bucket and add to new bucket
+                                    movies_list.remove(mov)
+                                    index[new_mm_dd].append(mov)
+                                    # status(f"Moved movie {mov['title']} from {day_key} to {new_mm_dd}", Fore.MAGENTA)
                         break
             continue
         # Check if the movie meets our criteria
@@ -767,9 +777,12 @@ def apply_updates_jsonl(idx, updates_file_path):
                     for k, v in update_obj.items():
                         if k not in ("imdb_id", "id"):
                             mov[k] = v
-                    # If release_date changed, move movie to new MM_DD index
+                    # If release_date changed, update release_year and move movie to new MM_DD index
                     new_release_date = mov.get("release_date")
                     if new_release_date and new_release_date != old_release_date:
+                        # Update release_year to match new release_date
+                        if len(new_release_date.split("-")) == 3:
+                            mov["release_year"] = new_release_date.split("-")[0]
                         # Remove from old MM_DD
                         if old_release_date and len(old_release_date.split("-")) == 3:
                             old_mmdd = f"{old_release_date.split('-')[1]}_{old_release_date.split('-')[2]}"

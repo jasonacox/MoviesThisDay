@@ -1,5 +1,12 @@
 # MoviesThisDay Release Notes
 
+## v0.1.14 (2026-02-01)
+- Fixed: Details page now handles `omdb_imdb_rating` as either float or string, preventing template errors when rating is a numeric type.
+- Database build fix: When duplicate movies are found (e.g., movie appears in both main CSV and trending CSV), the movie is now properly moved to the correct MM_DD date bucket if the release date changed.
+- Database build fix: `release_year` is now recalculated when a duplicate movie's release date is updated.
+- Database build fix: `apply_updates_jsonl` now automatically updates `release_year` when `release_date` is changed via manual updates.
+- These fixes resolve issues where movies with updated release dates would appear on the wrong date or have mismatched release_year values.
+
 ## v0.1.13 (2025-09-01)
 - Database build date ("Build") is now displayed in the footer of all main pages (About, Index, Search, Details) for improved transparency.
 - The About page Movie Database Statistics section now includes the build date as a list item above the stats.

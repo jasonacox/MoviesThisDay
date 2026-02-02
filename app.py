@@ -44,7 +44,7 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
-VERSION = "0.1.13"
+VERSION = "0.1.14"
 
 # At startup, record the start time
 START_TIME = time.time()
