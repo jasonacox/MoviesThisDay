@@ -133,6 +133,7 @@ if not TMDB_API_KEY:
 else:
     status("Fetching TMDB trending movies...", Fore.GREEN)
     trending_movies = []
+    trending_seen_ids = set()
     tmdb_trend = f"https://api.themoviedb.org/3/trending/movie/day"
     # Fetch trending movies (single page)
     for tmdb_url in [tmdb_trend]:
@@ -154,53 +155,41 @@ else:
                         f"https://api.themoviedb.org/3/movie/{id_movie}?language=en-US"
                     )
                     resp2 = requests.get(url, headers=headers, timeout=10)
+                    resp2_data = resp2.json()
                     trending_output["id"] = movie.get("id")
                     trending_output["title"] = movie.get("title")
-                    trending_output["vote_average"] = resp2.json().get("vote_average")
-                    trending_output["vote_count"] = resp2.json().get("vote_count")
-                    trending_output["status"] = resp2.json().get("status", "")
+                    trending_output["vote_average"] = resp2_data.get("vote_average")
+                    trending_output["vote_count"] = resp2_data.get("vote_count")
+                    trending_output["status"] = resp2_data.get("status", "")
                     trending_output["release_date"] = movie.get("release_date")
-                    trending_output["revenue"] = resp2.json().get("revenue")
-                    trending_output["runtime"] = resp2.json().get("runtime", "")
+                    trending_output["revenue"] = resp2_data.get("revenue")
+                    trending_output["runtime"] = resp2_data.get("runtime", "")
                     trending_output["adult"] = movie.get("adult", False)
-                    trending_output["backdrop_path"] = resp2.json().get("backdrop_path")
-                    trending_output["budget"] = resp2.json().get("budget")
-                    trending_output["homepage"] = resp2.json().get("homepage")
-                    trending_output["imdb_id"] = resp2.json().get("imdb_id", "")
-                    trending_output["original_language"] = resp2.json().get(
-                        "original_language"
-                    )
-                    trending_output["original_title"] = resp2.json().get(
-                        "original_title", ""
-                    )
-                    # Filter overview text to only allow alphanumeric chars and basic punctuation
-                    overview = resp2.json().get("overview", "")
+                    trending_output["backdrop_path"] = resp2_data.get("backdrop_path")
+                    trending_output["budget"] = resp2_data.get("budget")
+                    trending_output["homepage"] = resp2_data.get("homepage")
+                    trending_output["imdb_id"] = resp2_data.get("imdb_id", "")
+                    trending_output["original_language"] = resp2_data.get("original_language")
+                    trending_output["original_title"] = resp2_data.get("original_title", "")
+                    overview = resp2_data.get("overview", "")
                     if overview:
-                        # Replace line breaks first
                         overview = (
                             overview.replace("\r", " ")
                             .replace("\n", " ")
                             .replace("\t", " ")
                         )
-                        # Filter to only allow alphanumeric chars and basic punctuation
                         filtered_overview = "".join(
                             c for c in overview if c.isalnum() or c in " .,!?;:()-'\"[]"
                         )
-                        # Normalize whitespace
-                        trending_output["overview"] = " ".join(
-                            filtered_overview.split()
-                        )
+                        trending_output["overview"] = " ".join(filtered_overview.split())
                     else:
                         trending_output["overview"] = ""
                     trending_popularity = movie.get("popularity", 0.0)
                     if trending_popularity < POPULARITY_THRESHOLD:
-                        # Since these are trending we are going to bump them up but somehow keep
-                        # a rank by dividing its popularity by POPULARITY_THRESHOLD and adding 10
                         trending_popularity = ( trending_popularity / POPULARITY_THRESHOLD ) + 10
                     trending_output["popularity"] = trending_popularity
-                    trending_output["poster_path"] = resp2.json().get("poster_path")
-                    trending_output["tagline"] = resp2.json().get("tagline", "")
-                    # Convert genre_ids to genre names
+                    trending_output["poster_path"] = resp2_data.get("poster_path")
+                    trending_output["tagline"] = resp2_data.get("tagline", "")
                     genre_ids = movie.get("genre_ids", [])
                     if genre_ids and isinstance(genre_ids, list):
                         genre_names = [
@@ -211,24 +200,19 @@ else:
                         trending_output["genres"] = ", ".join(genre_names)
                     else:
                         trending_output["genres"] = ""
-                    # Convert production companies to comma-separated string
-                    production_companies = resp2.json().get("production_companies", [])
+                    production_companies = resp2_data.get("production_companies", [])
                     company_names = [
                         company.get("name", "")
                         for company in production_companies
                         if company.get("name")
                     ]
                     trending_output["production_companies"] = ", ".join(company_names)
-                    trending_output["production_countries"] = resp2.json().get(
-                        "production_countries", []
-                    )
-                    trending_output["spoken_languages"] = resp2.json().get(
-                        "spoken_languages", []
-                    )
-                    trending_output["keywords"] = (
-                        resp2.json().get("keywords", {}).get("keywords", [])
-                    )
-                    trending_movies.append(trending_output.copy())
+                    trending_output["production_countries"] = resp2_data.get("production_countries", [])
+                    trending_output["spoken_languages"] = resp2_data.get("spoken_languages", [])
+                    trending_output["keywords"] = resp2_data.get("keywords", {}).get("keywords", [])
+                    if trending_output["id"] not in trending_seen_ids:
+                        trending_seen_ids.add(trending_output["id"])
+                        trending_movies.append(trending_output.copy())
                     # If title begins with TRON highlight in yellow
                     if trending_output['title'].startswith("TRON"):
                         status(
@@ -248,142 +232,151 @@ else:
         except requests.exceptions.RequestException as e:
             status(f"[ERROR] Error fetching TMDB trending movies: {e}", Fore.RED)
 
-    # Fetch all pages for current year movies
-    page = 1
-    while True:
-        popularity = 0.0
-        tmdb_current_year = f"https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=en-US&page={page}&release_date.gte={TMDB_SNAPSHOT}&sort_by=release_date&with_runtime.gte=20"
-        status(f"TMDB: Fetching page {page} of movies with release date >= {TMDB_SNAPSHOT}...", Fore.GREEN)
-        try:
-            headers = {
-                "accept": "application/json",
-                "Authorization": "Bearer " + TMDB_API_KEY,
-            }
-            response = requests.get(tmdb_current_year, headers=headers, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                status(
-                    f"Found {len(data['results'])} movies on page {page} of {data.get('total_pages', '?')}"
-                )
-                for movie in data["results"]:
-                    # If popularity drops below threshold, stop loading further pages
-                    popularity = movie.get("popularity", 0.0)
-                    try:
-                        popularity = float(popularity)
-                    except (ValueError, TypeError):
-                        popularity = 0.0
-                    if popularity < POPULARITY_THRESHOLD:
-                        # Check to see if upcoming / unreleased and if so artificially boost popularity
-                        release_date_str = movie.get("release_date")
-                        is_upcoming = False
-                        if release_date_str:
-                            try:
-                                release_date_dt = datetime.strptime(release_date_str, "%Y-%m-%d").date()
-                                is_upcoming = release_date_dt > datetime.now().date()
-                            except Exception:
-                                is_upcoming = False
-                        if is_upcoming and popularity > (POPULARITY_THRESHOLD / 2):
+    # Fetch movies month by month from TMDB_SNAPSHOT through 2 years past today.
+    # TMDB caps results at 500 pages per query, so a single release_date.gte spanning
+    # many months would silently truncate; one month at a time stays well within that limit.
+    headers = {
+        "accept": "application/json",
+        "Authorization": "Bearer " + TMDB_API_KEY,
+    }
+    snapshot_date = datetime.strptime(TMDB_SNAPSHOT, "%Y-%m-%d").date()
+    end_date = datetime.now().date().replace(year=datetime.now().year + 2)
+    month_start = snapshot_date
+    while month_start <= end_date:
+        # Last day of this month
+        if month_start.month == 12:
+            month_end = month_start.replace(day=31)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1, day=1) - timedelta(days=1)
+        gte = month_start.strftime("%Y-%m-%d")
+        lte = min(month_end, end_date).strftime("%Y-%m-%d")
+        status(f"TMDB: Fetching movies {gte} to {lte}...", Fore.GREEN)
+        page = 1
+        while True:
+            popularity = 0.0
+            tmdb_current_year = (
+                f"https://api.themoviedb.org/3/discover/movie"
+                f"?include_adult=false&include_video=false&language=en-US"
+                f"&page={page}&release_date.gte={gte}&release_date.lte={lte}"
+                f"&sort_by=release_date&with_runtime.gte=20"
+            )
+            try:
+                response = requests.get(tmdb_current_year, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    status(
+                        f"  Page {page}/{data.get('total_pages', '?')}: {len(data['results'])} movies"
+                    )
+                    for movie in data["results"]:
+                        popularity = movie.get("popularity", 0.0)
+                        try:
+                            popularity = float(popularity)
+                        except (ValueError, TypeError):
+                            popularity = 0.0
+                        if popularity < POPULARITY_THRESHOLD:
+                            release_date_str = movie.get("release_date")
+                            is_upcoming = False
+                            if release_date_str:
+                                try:
+                                    release_date_dt = datetime.strptime(release_date_str, "%Y-%m-%d").date()
+                                    is_upcoming = release_date_dt > datetime.now().date()
+                                except Exception:
+                                    is_upcoming = False
+                            if is_upcoming and popularity > (POPULARITY_THRESHOLD / 2):
+                                status(
+                                    f"Upcoming movie '{movie.get('title','?')}' has popularity {popularity} - updating to {popularity + 5}",
+                                    Fore.YELLOW,
+                                )
+                                popularity = popularity + 5
+                            else:
+                                continue
+                        if movie.get("id") in trending_seen_ids:
+                            continue
+                        trending_output = {}
+                        id_movie = movie.get("id")
+                        url = f"https://api.themoviedb.org/3/movie/{id_movie}?language=en-US"
+                        resp2 = requests.get(url, headers=headers, timeout=10)
+                        resp2_data = resp2.json()
+                        trending_output["id"] = movie.get("id")
+                        trending_output["title"] = movie.get("title")
+                        trending_output["vote_average"] = resp2_data.get("vote_average")
+                        trending_output["vote_count"] = resp2_data.get("vote_count")
+                        trending_output["status"] = resp2_data.get("status", "")
+                        trending_output["release_date"] = movie.get("release_date")
+                        trending_output["revenue"] = resp2_data.get("revenue")
+                        trending_output["runtime"] = resp2_data.get("runtime", "")
+                        trending_output["adult"] = movie.get("adult", False)
+                        trending_output["backdrop_path"] = resp2_data.get("backdrop_path")
+                        trending_output["budget"] = resp2_data.get("budget")
+                        trending_output["homepage"] = resp2_data.get("homepage")
+                        trending_output["imdb_id"] = resp2_data.get("imdb_id", "")
+                        trending_output["original_language"] = resp2_data.get("original_language")
+                        trending_output["original_title"] = resp2_data.get("original_title", "")
+                        overview = resp2_data.get("overview", "")
+                        if overview:
+                            overview = (
+                                overview.replace("\r", " ")
+                                .replace("\n", " ")
+                                .replace("\t", " ")
+                            )
+                            filtered_overview = "".join(
+                                c for c in overview if c.isalnum() or c in " .,!?;:()-'\"[]"
+                            )
+                            trending_output["overview"] = " ".join(filtered_overview.split())
+                        else:
+                            trending_output["overview"] = ""
+                        trending_output["popularity"] = popularity
+                        trending_output["poster_path"] = resp2_data.get("poster_path")
+                        trending_output["tagline"] = resp2_data.get("tagline", "")
+                        genre_ids = movie.get("genre_ids", [])
+                        if genre_ids and isinstance(genre_ids, list):
+                            genre_names = [
+                                TMDB_GENRE_ID_TO_NAME.get(gid)
+                                for gid in genre_ids
+                                if gid in TMDB_GENRE_ID_TO_NAME
+                            ]
+                            trending_output["genres"] = ", ".join(genre_names)
+                        else:
+                            trending_output["genres"] = ""
+                        production_companies = resp2_data.get("production_companies", [])
+                        company_names = [
+                            company.get("name", "")
+                            for company in production_companies
+                            if company.get("name")
+                        ]
+                        trending_output["production_companies"] = ", ".join(company_names)
+                        trending_output["production_countries"] = resp2_data.get("production_countries", [])
+                        trending_output["spoken_languages"] = resp2_data.get("spoken_languages", [])
+                        trending_output["keywords"] = resp2_data.get("keywords", {}).get("keywords", [])
+                        if trending_output["id"] not in trending_seen_ids:
+                            trending_seen_ids.add(trending_output["id"])
+                            trending_movies.append(trending_output.copy())
                             status(
-                                f"Upcoming movie '{movie.get('title','?')}' has popularity {popularity} - updating to {popularity + 5}",
+                                f"Added: {trending_output['title']} (ID: {trending_output['imdb_id']})"
+                            )
+                        else:
+                            status(
+                                f"Skipped duplicate: {trending_output['title']} (ID: {trending_output['id']})",
                                 Fore.YELLOW,
                             )
-                            popularity = popularity + 5
-                        else:
-                            # Skip it
-                            continue
-                    trending_output = {}
-                    # look up imdb for movie
-                    id_movie = movie.get("id")
-                    url = (
-                        f"https://api.themoviedb.org/3/movie/{id_movie}?language=en-US"
-                    )
-                    resp2 = requests.get(url, headers=headers, timeout=10)
-                    trending_output["id"] = movie.get("id")
-                    trending_output["title"] = movie.get("title")
-                    trending_output["vote_average"] = resp2.json().get("vote_average")
-                    trending_output["vote_count"] = resp2.json().get("vote_count")
-                    trending_output["status"] = resp2.json().get("status", "")
-                    trending_output["release_date"] = movie.get("release_date")
-                    trending_output["revenue"] = resp2.json().get("revenue")
-                    trending_output["runtime"] = resp2.json().get("runtime", "")
-                    trending_output["adult"] = movie.get("adult", False)
-                    trending_output["backdrop_path"] = resp2.json().get("backdrop_path")
-                    trending_output["budget"] = resp2.json().get("budget")
-                    trending_output["homepage"] = resp2.json().get("homepage")
-                    trending_output["imdb_id"] = resp2.json().get("imdb_id", "")
-                    trending_output["original_language"] = resp2.json().get(
-                        "original_language"
-                    )
-                    trending_output["original_title"] = resp2.json().get(
-                        "original_title", ""
-                    )
-                    # Filter overview text to only allow alphanumeric chars and basic punctuation
-                    overview = resp2.json().get("overview", "")
-                    if overview:
-                        # Replace line breaks first
-                        overview = (
-                            overview.replace("\r", " ")
-                            .replace("\n", " ")
-                            .replace("\t", " ")
-                        )
-                        # Filter to only allow alphanumeric chars and basic punctuation
-                        filtered_overview = "".join(
-                            c for c in overview if c.isalnum() or c in " .,!?;:()-'\"[]"
-                        )
-                        # Normalize whitespace
-                        trending_output["overview"] = " ".join(
-                            filtered_overview.split()
-                        )
-                    else:
-                        trending_output["overview"] = ""
-                    trending_output["popularity"] = popularity
-                    trending_output["poster_path"] = resp2.json().get("poster_path")
-                    trending_output["tagline"] = resp2.json().get("tagline", "")
-                    # Convert genre_ids to genre names
-                    genre_ids = movie.get("genre_ids", [])
-                    if genre_ids and isinstance(genre_ids, list):
-                        genre_names = [
-                            TMDB_GENRE_ID_TO_NAME.get(gid)
-                            for gid in genre_ids
-                            if gid in TMDB_GENRE_ID_TO_NAME
-                        ]
-                        trending_output["genres"] = ", ".join(genre_names)
-                    else:
-                        trending_output["genres"] = ""
-                    # Convert production companies to comma-separated string
-                    production_companies = resp2.json().get("production_companies", [])
-                    company_names = [
-                        company.get("name", "")
-                        for company in production_companies
-                        if company.get("name")
-                    ]
-                    trending_output["production_companies"] = ", ".join(company_names)
-                    trending_output["production_countries"] = resp2.json().get(
-                        "production_countries", []
-                    )
-                    trending_output["spoken_languages"] = resp2.json().get(
-                        "spoken_languages", []
-                    )
-                    trending_output["keywords"] = (
-                        resp2.json().get("keywords", {}).get("keywords", [])
-                    )
-                    trending_movies.append(trending_output.copy())
+                    total_pages = data.get("total_pages", 1)
+                    if page >= total_pages:
+                        break
+                    page += 1
+                else:
                     status(
-                        f"Added: {trending_output['title']} (ID: {trending_output['imdb_id']})"
+                        f"[ERROR] TMDB API request failed with status code {response.status_code}: {response.text}",
+                        Fore.RED,
                     )
-                total_pages = data.get("total_pages", 1)
-                if page >= total_pages:
                     break
-                page += 1
-            else:
-                status(
-                    f"[ERROR] TMDB API request failed with status code {response.status_code}: {response.text}",
-                    Fore.RED,
-                )
+            except requests.exceptions.RequestException as e:
+                status(f"[ERROR] Error fetching TMDB movies ({gte} to {lte}): {e}", Fore.RED)
                 break
-        except requests.exceptions.RequestException as e:
-            status(f"[ERROR] Error fetching TMDB current year movies: {e}", Fore.RED)
-            break
+        # Advance to first day of next month
+        if month_start.month == 12:
+            month_start = month_start.replace(year=month_start.year + 1, month=1, day=1)
+        else:
+            month_start = month_start.replace(month=month_start.month + 1, day=1)
     # save it
     with open(TMDB_TRENDING_CSV, "w", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(
@@ -441,26 +434,12 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
 
     # Load OMDb cache if it exists
     omdb_cache = {}
-    skip_count = 0
     if os.path.exists(OMDB_RAW):
-        one_year_ago = datetime.now().replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ) - timedelta(days=365)
         with open(OMDB_RAW, "r", encoding="utf-8") as raw_file:
             for line_num, line in enumerate(raw_file, 1):
                 try:
                     data = json.loads(line)
                     imdb_id = data.get("imdbID")
-                    released_str = data.get("Released")
-                    # Only load into cache if not released within the last year
-                    if released_str and released_str != "N/A":
-                        try:
-                            released_dt = datetime.strptime(released_str, "%d %b %Y")
-                            if released_dt > one_year_ago:
-                                skip_count += 1
-                                continue  # skip recent movies
-                        except Exception:
-                            pass  # If date can't be parsed, fall through and cache
                     if imdb_id:
                         omdb_cache[imdb_id] = data
                 except json.JSONDecodeError as e:
@@ -468,7 +447,7 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                 except Exception as e:
                     status(f"[OMDb Cache] Unexpected error on line {line_num}: {e} - {line}", Fore.RED)
         status(
-            f"Loaded {len(omdb_cache)} OMDb entries from cache, skipped {skip_count} recent movies.",
+            f"Loaded {len(omdb_cache)} OMDb entries from cache.",
             Fore.YELLOW,
         )
     else:
@@ -476,12 +455,16 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
 
     # Use a requests.Session for OMDb requests to enable connection reuse
     omdb_session = requests.Session()
+    # Open OMDb raw file once for the entire loop rather than per-fetch
+    omdb_raw_file = open(OMDB_RAW, "a", encoding="utf-8") if OMDB_API_KEY else None
 
     # Main CSV processing loop
 
     status("Processing main CSV and enriching with OMDb data...", Fore.CYAN)
     status(f"Total rows in {TMDB_CSV}: {total_rows}")
     seen_ids = set()
+    tmdb_id_to_movie = {}  # movie_id -> movie dict in the index (O(1) duplicate updates)
+    imdb_id_to_movie = {}  # imdb_id -> movie dict already in the index
     for row in reader:
         row_count += 1
         movie_id = row["id"]
@@ -489,54 +472,46 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
         #if row["title"].startswith("Lookout"):
         #    print(row)
         #    input(f"Found Lookout movie: {row['title']} (ID: {movie_id})")
-        # If we've already inserted this movie id, update popularity in the index and continue
+        # If we've already inserted this movie id, update it directly via dict lookup (O(1))
         if movie_id in seen_ids:
-            # print(f"Movie ID {movie_id} already seen, updating popularity... {row['title']}")
-            # print(row)
-            # Search index for this movie id and update all the data:
-            # "id","title","vote_average","vote_count","status","release_date","revenue","runtime","adult","backdrop_path","budget","homepage","imdb_id","original_language","original_title","overview","popularity","poster_path","tagline","genres","production_companies","production_countries","spoken_languages","keywords"
-
-            for day_key, movies_list in index.items():
-                for mov in movies_list:
-                    if mov["id"] == movie_id:
-                        old_release_date = mov.get("release_date")
-                        new_release_date = row["release_date"]
-                        mov.update({
-                            "popularity": row["popularity"],
-                            "vote_average": row["vote_average"],
-                            "vote_count": row["vote_count"],
-                            "title": row["title"],
-                            "release_date": new_release_date,
-                            "release_year": new_release_date.split("-")[0] if new_release_date else None,
-                            "status": row["status"],
-                            "revenue": row["revenue"],
-                            "runtime": row["runtime"],
-                            "budget": row["budget"],
-                            "adult": row["adult"],
-                            "backdrop_path": row["backdrop_path"],
-                            "homepage": row["homepage"],
-                            "imdb_id": row["imdb_id"],
-                            "original_language": row["original_language"],
-                            "original_title": row["original_title"],
-                            "overview": row["overview"],
-                            "poster_path": row["poster_path"],
-                            "tagline": row["tagline"],
-                            "genres": row["genres"],
-                            "production_companies": row["production_companies"],
-                            "production_countries": row["production_countries"],
-                            "spoken_languages": row["spoken_languages"],
-                            "keywords": row["keywords"],
-                        })
-                        # If release_date changed, move movie to the new MM_DD bucket
-                        if new_release_date and new_release_date != old_release_date:
-                            if len(new_release_date.split("-")) == 3:
-                                new_mm_dd = f"{new_release_date.split('-')[1]}_{new_release_date.split('-')[2]}"
-                                if new_mm_dd != day_key:
-                                    # Remove from current bucket and add to new bucket
-                                    movies_list.remove(mov)
-                                    index[new_mm_dd].append(mov)
-                                    # status(f"Moved movie {mov['title']} from {day_key} to {new_mm_dd}", Fore.MAGENTA)
-                        break
+            mov = tmdb_id_to_movie[movie_id]
+            old_release_date = mov.get("release_date")
+            new_release_date = row["release_date"]
+            mov.update({
+                "popularity": row["popularity"],
+                "vote_average": row["vote_average"],
+                "vote_count": row["vote_count"],
+                "title": row["title"],
+                "release_date": new_release_date,
+                "release_year": new_release_date.split("-")[0] if new_release_date else None,
+                "status": row["status"],
+                "revenue": row["revenue"],
+                "runtime": row["runtime"],
+                "budget": row["budget"],
+                "adult": row["adult"],
+                "backdrop_path": row["backdrop_path"],
+                "homepage": row["homepage"],
+                "imdb_id": row["imdb_id"],
+                "original_language": row["original_language"],
+                "original_title": row["original_title"],
+                "overview": row["overview"],
+                "poster_path": row["poster_path"],
+                "tagline": row["tagline"],
+                "genres": row["genres"],
+                "production_companies": row["production_companies"],
+                "production_countries": row["production_countries"],
+                "spoken_languages": row["spoken_languages"],
+                "keywords": row["keywords"],
+            })
+            # If release_date changed, move movie to the new MM_DD bucket
+            if new_release_date and new_release_date != old_release_date:
+                if len(new_release_date.split("-")) == 3:
+                    new_mm_dd = f"{new_release_date.split('-')[1]}_{new_release_date.split('-')[2]}"
+                    if old_release_date and len(old_release_date.split("-")) == 3:
+                        old_mm_dd = f"{old_release_date.split('-')[1]}_{old_release_date.split('-')[2]}"
+                        if new_mm_dd != old_mm_dd and mov in index.get(old_mm_dd, []):
+                            index[old_mm_dd].remove(mov)
+                            index[new_mm_dd].append(mov)
             continue
         # Check if the movie meets our criteria
         is_non_adult = row["adult"].lower() in ADULT
@@ -622,10 +597,9 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                                 omdb_json = omdb_resp.json()
                                 # write raw OMDb data to file and update cache
                                 try:
-                                    with open(OMDB_RAW, "a", encoding="utf-8") as raw_file:
-                                        raw_file.write(
-                                            json.dumps(omdb_json, ensure_ascii=False) + "\n"
-                                        )
+                                    omdb_raw_file.write(
+                                        json.dumps(omdb_json, ensure_ascii=False) + "\n"
+                                    )
                                 except Exception as e:
                                     status(f"Error writing OMDb data to file: {e}", Fore.RED)
                                 omdb_cache[imdb_id] = omdb_json
@@ -716,8 +690,31 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                     "omdb_rated": row.get("omdb_rated"),
                 }
                 # print(f" -- Adding movie: {movie['title']} (ID: {movie_id}, Release Date: {movie['release_date']})")
+                # Deduplicate by IMDb ID — keep the highest-popularity entry
+                imdb_id_val = movie.get("imdb_id")
+                if imdb_id_val and imdb_id_val not in ("", "N/A"):
+                    if imdb_id_val in imdb_id_to_movie:
+                        existing = imdb_id_to_movie[imdb_id_val]
+                        try:
+                            existing_pop = float(existing.get("popularity", 0))
+                            new_pop = float(movie.get("popularity", 0))
+                        except (ValueError, TypeError):
+                            existing_pop = new_pop = 0.0
+                        if new_pop <= existing_pop:
+                            continue
+                        # New entry has higher popularity — evict the old one
+                        old_date = existing.get("release_date", "")
+                        if old_date and len(old_date.split("-")) == 3:
+                            old_mm_dd = f"{old_date.split('-')[1]}_{old_date.split('-')[2]}"
+                            bucket = index.get(old_mm_dd, [])
+                            if existing in bucket:
+                                bucket.remove(existing)
+                                seen_ids.discard(existing["id"])
+                                added_count -= 1
+                    imdb_id_to_movie[imdb_id_val] = movie
                 index[this_day].append(movie)
                 seen_ids.add(movie_id)
+                tmdb_id_to_movie[movie_id] = movie
                 added_count += 1
         # Progress bar
         if row_count % 1000 == 0 or row_count == total_rows:
@@ -728,6 +725,8 @@ with open(COMBINED_TMDB_CSV, newline="", encoding="utf-8") as csvfile:
                 end="",
             )
     print()  # Newline after progress bar
+    if omdb_raw_file:
+        omdb_raw_file.close()
     if count_popularity_over_10 > 0:
         avg_popularity_over_10 = sum_popularity_over_10 / count_popularity_over_10
         status(
