@@ -134,7 +134,16 @@ def append_correction(imdb_id, updates, movie):
     corr.update(updates)
     if 'title' in movie:
         corr['movie_title'] = movie['title']
+    # Make sure the new record starts on its own line even if the file
+    # does not end with a newline (otherwise both records become unparseable)
+    needs_newline = False
+    if os.path.exists(CORRECTIONS_PATH) and os.path.getsize(CORRECTIONS_PATH) > 0:
+        with open(CORRECTIONS_PATH, 'rb') as f:
+            f.seek(-1, os.SEEK_END)
+            needs_newline = f.read(1) != b'\n'
     with open(CORRECTIONS_PATH, 'a', encoding='utf-8') as f:
+        if needs_newline:
+            f.write('\n')
         f.write(json.dumps(corr, ensure_ascii=False) + '\n')
     print(f"Correction appended to {CORRECTIONS_PATH}.")
 
